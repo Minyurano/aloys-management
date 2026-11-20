@@ -25,6 +25,7 @@
   const JOURS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   const DAY = 86400000;
 
+  const DEV = () => (typeof window.DEV === 'function' ? window.DEV() : 'MAD');
   let charts = [];
   let period = 'all';
 
@@ -227,21 +228,49 @@
     }
   };
 
+  // Holt-Winters additif à saisonnalité hebdomadaire (m = 7)
+  MODELS.holtwinters = {
+    label: 'Holt-Winters saisonnier (hebdo.)',
+    minN: 21,
+    fit(y) {
+      const m = 7, n = y.length;
+      if (n < 2 * m) return null;
+      const mean0 = mean(y.slice(0, m)), mean1 = mean(y.slice(m, 2 * m));
+      let best = null;
+      for (const a of [0.1, 0.3, 0.5, 0.7, 0.9]) for (const b of [0.05, 0.1, 0.3]) for (const g of [0.05, 0.1, 0.3, 0.5]) {
+        let l = mean0, tr = (mean1 - mean0) / m, sse = 0;
+        const s = y.slice(0, m).map(v => v - mean0), res = [];
+        for (let t = m; t < n; t++) {
+          const st = s[t - m], pred = l + tr + st, e = y[t] - pred;
+          res.push(e); sse += e * e;
+          const nl = a * (y[t] - st) + (1 - a) * (l + tr);
+          tr = b * (nl - l) + (1 - b) * tr;
+          s[t] = g * (y[t] - nl) + (1 - g) * st;
+          l = nl;
+        }
+        if (!best || sse < best.sse) best = { a, b, g, l, tr, season: s.slice(n - m), sse, res };
+      }
+      return { alpha: best.a, beta: best.b, gamma: best.g, level: best.l, trend: best.tr, season: best.season, sigma: sd(best.res) || 0, residuals: best.res };
+    },
+    forecast(f, h) { return { mean: f.level + f.trend * h + f.season[(h - 1) % 7], se: f.sigma * Math.sqrt(h) }; }
+  };
+
   // Validation temporelle : on cache les derniers jours, on prévoit, on mesure l'erreur
   function compareModels(y) {
     const n = y.length;
     if (n < 6) return null;
     const hTest = Math.max(1, Math.min(14, Math.round(n * 0.2)));
     const train = y.slice(0, n - hTest), test = y.slice(n - hTest);
-    const rows = Object.entries(MODELS).map(([key, M]) => {
+    const rows = Object.entries(MODELS).filter(([, M]) => train.length >= (M.minN || 3)).map(([key, M]) => {
       const fitted = M.fit(train);
+      if (!fitted) return null;
       const errs = test.map((v, i) => v - M.forecast(fitted, i + 1).mean);
       return {
         key, label: M.label,
         mae: mean(errs.map(Math.abs)),
         rmse: Math.sqrt(mean(errs.map(e => e * e)))
       };
-    });
+    }).filter(Boolean);
     rows.sort((a, b) => a.mae - b.mae || a.rmse - b.rmse);
     return { rows, best: rows[0].key, hTest, nTrain: train.length };
   }
@@ -264,7 +293,7 @@
         tooltip: {
           backgroundColor: '#0F1B2D', borderColor: 'rgba(201,162,39,0.4)', borderWidth: 1,
           titleColor: C_TEXT, bodyColor: C_TEXT, padding: 10,
-          callbacks: { label: ctx => `${ctx.dataset.label ? ctx.dataset.label + ' : ' : ''}${fmt(ctx.parsed.y ?? ctx.parsed)} MAD` }
+          callbacks: { label: ctx => `${ctx.dataset.label ? ctx.dataset.label + ' : ' : ''}${fmt(ctx.parsed.y ?? ctx.parsed)} ${DEV()}` }
         }
       },
       scales: {
@@ -309,7 +338,7 @@
     root.innerHTML = `
       <h2>📊 Analyse &amp; modèles</h2>
       <p class="role">Tableau de bord analytique du registre : répartition par membre, distribution des montants,
-      évolution du solde, <b>comparaison de quatre modèles de prévision</b> par validation temporelle,
+      évolution du solde, <b>comparaison de cinq modèles de prévision</b> par validation temporelle,
       test statistique entre membres et détection d'opérations inhabituelles. Survolez un graphique pour voir les valeurs.</p>
 
       <div class="an-filters" role="group" aria-label="Période analysée">
@@ -332,6 +361,7 @@
       <div class="an-grid">
         ${card('anPieIn', 'Part des dépôts par membre', 'Qui alimente la caisse commune ?')}
         ${card('anPieOut', 'Part des dépenses par membre', 'Qui retire de l\'argent ?')}
+        ${card('anPieCat', 'Dépenses par catégorie', 'À quoi sert l\'argent de la caisse ?')}
       </div>
 
       <h3 class="an-h">2. Distribution des montants</h3>
@@ -377,6 +407,7 @@
 
     if (tx.length) {
       drawPies(root, persons, dep, out);
+      drawCategories(root, out);
       drawHistogram(root, dep, out);
       drawStrip(root, persons, dep);
       drawMonthly(root, tx);
@@ -404,15 +435,44 @@
           cutout: '58%', scales: {},
           plugins: {
             legend: { position: 'bottom', labels: { color: C_TEXT, boxWidth: 12, usePointStyle: true, pointStyle: 'rectRounded' } },
-            tooltip: { callbacks: { label: c => `${c.label} : ${fmt(c.parsed)} MAD (${pct(c.parsed / total)})` } }
+            tooltip: { callbacks: { label: c => `${c.label} : ${fmt(c.parsed)} ${DEV()} (${pct(c.parsed / total)})` } }
           }
         })
       });
       const top = idx.reduce((a, i) => vals[i] > vals[a] ? i : a, idx[0]);
       const share = vals[top] / total;
-      read(root, id, `<b>${esc(persons[top])}</b> représente <b>${pct(share)}</b> du total ${verb} (${fmt(total)} MAD).
+      read(root, id, `<b>${esc(persons[top])}</b> représente <b>${pct(share)}</b> du total ${verb} (${fmt(total)} ${DEV()}).
         ${idx.length > 1 ? (share > 0.5 ? 'La contribution est concentrée sur une seule personne.' : 'La répartition est partagée entre plusieurs membres.') : 'Un seul membre apparaît sur la période.'}`);
     });
+  }
+
+  /* ---- 1b. Catégories ---- */
+  function drawCategories(root, out) {
+    const CAT = window.AloysCategories;
+    if (!CAT) { empty(root, 'anPieCat', 'Module des catégories non chargé.'); return; }
+    const total = sum(out.map(t => t.amount));
+    if (!total) { empty(root, 'anPieCat', 'Aucune dépense sur la période.'); return; }
+    const agg = {};
+    out.forEach(t => { const c = CAT.categorieDe(t); agg[c] = (agg[c] || 0) + t.amount; });
+    const ids = CAT.CATEGORIES.map(c => c.id).filter(id => agg[id] > 0).sort((a, b) => agg[b] - agg[a]);
+    // 7 catégories maximum à l'écran (palette validée), le reste est regroupé dans « Autres »
+    let shown = ids.slice(0, 7), rest = ids.slice(7);
+    const labels = shown.map(id => CAT.libelle(id)), data = shown.map(id => agg[id]);
+    if (rest.length) { labels.push('📦 Autres catégories'); data.push(sum(rest.map(id => agg[id]))); }
+    makeChart(canvasOf(root, 'anPieCat'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data, backgroundColor: data.map((_, i) => PALETTE[i % PALETTE.length]), borderColor: C_SURF, borderWidth: 2, hoverOffset: 6 }] },
+      options: Object.assign(baseOptions(), {
+        cutout: '58%', scales: {},
+        plugins: {
+          legend: { position: 'bottom', labels: { color: C_TEXT, boxWidth: 12, usePointStyle: true, pointStyle: 'rectRounded' } },
+          tooltip: { callbacks: { label: c => `${c.label} : ${fmt(c.parsed)} ${DEV()} (${pct(c.parsed / total)})` } }
+        }
+      })
+    });
+    const unc = agg.autre || 0;
+    read(root, 'anPieCat', `Premier poste : <b>${CAT.libelle(ids[0])}</b> avec <b>${pct(agg[ids[0]] / total)}</b> des dépenses.
+      ${unc / total > 0.3 ? ` ${pct(unc / total)} des dépenses ne sont pas classées : indiquez une catégorie dans la facture pour affiner l'analyse.` : ''}`);
   }
 
   /* ---- 2a. Histogramme ---- */
@@ -453,17 +513,17 @@
         datasets: { bar: { categoryPercentage: 0.8, barPercentage: 0.9 } },
         plugins: {
           legend: { labels: { color: C_TEXT, boxWidth: 12, usePointStyle: true, pointStyle: 'rectRounded' } },
-          tooltip: { callbacks: { title: c => `${c[0].label} MAD`, label: c => `${c.dataset.label} : ${c.parsed.y} opération${c.parsed.y > 1 ? 's' : ''}` } }
+          tooltip: { callbacks: { title: c => `${c[0].label} ${DEV()}`, label: c => `${c.dataset.label} : ${c.parsed.y} opération${c.parsed.y > 1 ? 's' : ''}` } }
         },
         scales: {
-          x: { ticks: { color: C_MUTED, maxRotation: 0, autoSkip: true }, grid: { display: false }, title: { display: true, text: 'Montant (MAD)', color: C_MUTED } },
+          x: { ticks: { color: C_MUTED, maxRotation: 0, autoSkip: true }, grid: { display: false }, title: { display: true, text: 'Montant (' + DEV() + ')', color: C_MUTED } },
           y: { ticks: { color: C_MUTED, precision: 0 }, grid: { color: C_GRID }, border: { display: false }, beginAtZero: true, title: { display: true, text: 'Nombre', color: C_MUTED } }
         }
       })
     });
     const sk = skewness(values), q1 = quantile(values, 0.25), q3 = quantile(values, 0.75);
-    read(root, 'anHist', `Médiane <b>${fmt(median(values))} MAD</b>, 50 % des montants entre <b>${fmt(q1)}</b> et <b>${fmt(q3)} MAD</b>.
-      ${overflow !== null ? `Les montants exceptionnels (≥ ${fmt(overflow)} MAD) sont regroupés dans la dernière classe.` : ''}
+    read(root, 'anHist', `Médiane <b>${fmt(median(values))} ${DEV()}</b>, 50 % des montants entre <b>${fmt(q1)}</b> et <b>${fmt(q3)} ${DEV()}</b>.
+      ${overflow !== null ? `Les montants exceptionnels (≥ ${fmt(overflow)} ${DEV()}) sont regroupés dans la dernière classe.` : ''}
       ${isFinite(sk) ? `Asymétrie = <b>${num(sk)}</b> : ${Math.abs(sk) < 0.5 ? 'distribution à peu près symétrique.' : sk > 0 ? 'quelques gros montants tirent la moyenne vers le haut ; la médiane est plus représentative.' : 'quelques petits montants tirent la moyenne vers le bas.'}` : ''}`);
   }
 
@@ -488,18 +548,18 @@
       options: baseOptions({
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: c => c.dataset.label === 'Médiane' ? `Médiane ${ps[c.raw.x]} : ${fmt(c.parsed.y)} MAD` : `${c.dataset.label} : ${fmt(c.parsed.y)} MAD (${dateFr(c.raw.d)})` } }
+          tooltip: { callbacks: { label: c => c.dataset.label === 'Médiane' ? `Médiane ${ps[c.raw.x]} : ${fmt(c.parsed.y)} ${DEV()}` : `${c.dataset.label} : ${fmt(c.parsed.y)} ${DEV()} (${dateFr(c.raw.d)})` } }
         },
         scales: {
           x: { type: 'linear', min: -0.6, max: ps.length - 0.4, ticks: { stepSize: 1, color: C_TEXT, callback: v => Number.isInteger(v) && ps[v] ? ps[v].split(/\s+/)[0] : '' }, grid: { display: false }, border: { color: C_GRID } },
-          y: { ticks: { color: C_MUTED, callback: v => Number(v).toLocaleString('fr-FR') }, grid: { color: C_GRID }, border: { display: false }, beginAtZero: true, title: { display: true, text: 'MAD', color: C_MUTED } }
+          y: { ticks: { color: C_MUTED, callback: v => Number(v).toLocaleString('fr-FR') }, grid: { color: C_GRID }, border: { display: false }, beginAtZero: true, title: { display: true, text: DEV(), color: C_MUTED } }
         }
       })
     });
     const meds = ps.map(p => ({ p, m: median(dep.filter(t => t.person === p).map(t => t.amount)) })).sort((a, b) => b.m - a.m);
     read(root, 'anStrip', meds.length > 1
-      ? `Dépôt médian le plus élevé : <b>${esc(meds[0].p)}</b> (${fmt(meds[0].m)} MAD) ; le plus faible : <b>${esc(meds[meds.length - 1].p)}</b> (${fmt(meds[meds.length - 1].m)} MAD). Le test statistique (section 5) indique si cet écart est significatif.`
-      : `Dépôt médian de <b>${esc(meds[0].p)}</b> : ${fmt(meds[0].m)} MAD.`);
+      ? `Dépôt médian le plus élevé : <b>${esc(meds[0].p)}</b> (${fmt(meds[0].m)} ${DEV()}) ; le plus faible : <b>${esc(meds[meds.length - 1].p)}</b> (${fmt(meds[meds.length - 1].m)} ${DEV()}). Le test statistique (section 5) indique si cet écart est significatif.`
+      : `Dépôt médian de <b>${esc(meds[0].p)}</b> : ${fmt(meds[0].m)} ${DEV()}.`);
   }
 
   /* ---- 3a. Mensuel ---- */
@@ -583,7 +643,7 @@
           legend: { labels: { color: C_TEXT, boxWidth: 14, filter: it => !it.text.startsWith('Borne') } },
           tooltip: {
             filter: it => it.parsed.y !== null && !it.dataset.label.startsWith('Borne'),
-            callbacks: { label: c => `${c.dataset.label} : ${fmt(c.parsed.y)} MAD` }
+            callbacks: { label: c => `${c.dataset.label} : ${fmt(c.parsed.y)} ${DEV()}` }
           }
         },
         scales: {
@@ -600,17 +660,17 @@
       const rem = remainingTarget();
       const recent = series.slice(-30), inflow = sum(txAll.filter(t => t.type === 'deposit' && t.ts >= recent[0].ts).map(t => t.amount)) / recent.length;
       if (rem <= 0) targetTxt = ' L\'objectif d\'épargne est déjà atteint.';
-      else if (inflow > 0) targetTxt = ` Au rythme de dépôt des 30 derniers jours (${fmt(inflow)} MAD/jour), l'objectif serait atteint vers le <b>${dateFr(Date.now() + Math.ceil(rem / inflow) * DAY)}</b>.`;
+      else if (inflow > 0) targetTxt = ` Au rythme de dépôt des 30 derniers jours (${fmt(inflow)} ${DEV()}/jour), l'objectif serait atteint vers le <b>${dateFr(Date.now() + Math.ceil(rem / inflow) * DAY)}</b>.`;
       else targetTxt = ' Aucun dépôt récent : l\'objectif ne peut pas être projeté.';
     }
-    read(root, 'anForecast', `Modèle retenu : <b>${M.label}</b>. Solde prévu dans 30 jours : <b>${fmt(end.mean)} MAD</b>
-      (intervalle à 95 % : ${fmt(end.lo)} à ${fmt(end.hi)} MAD), soit ${slopePerDay >= 0 ? '+' : ''}${fmt(slopePerDay)} MAD par jour.
+    read(root, 'anForecast', `Modèle retenu : <b>${M.label}</b>. Solde prévu dans 30 jours : <b>${fmt(end.mean)} ${DEV()}</b>
+      (intervalle à 95 % : ${fmt(end.lo)} à ${fmt(end.hi)} ${DEV()}), soit ${slopePerDay >= 0 ? '+' : ''}${fmt(slopePerDay)} ${DEV()} par jour.
       ${end.lo < 0 && end.mean > 0 ? 'Le bas de l\'intervalle passe sous zéro : risque réel de caisse vide.' : end.mean < 0 ? '<b>Alerte :</b> la caisse serait vide avant 30 jours sans nouveaux dépôts.' : ''}${targetTxt}`);
 
     const r2 = mco.r2;
     host.innerHTML = `
       <div class="tablewrap"><table class="an-models">
-        <thead><tr><th>Modèle</th><th>MAE (MAD)</th><th>RMSE (MAD)</th><th>Verdict</th></tr></thead>
+        <thead><tr><th>Modèle</th><th>MAE (${DEV()})</th><th>RMSE (${DEV()})</th><th>Verdict</th></tr></thead>
         <tbody>${cmp.rows.map((r, i) => `<tr class="${i === 0 ? 'best' : ''}"><td>${r.label}</td><td>${fmt(r.mae)}</td><td>${fmt(r.rmse)}</td>
           <td>${i === 0 ? '✅ Retenu' : `+${pct(cmp.rows[0].mae ? (r.mae - cmp.rows[0].mae) / cmp.rows[0].mae : 0)} d'erreur`}</td></tr>`).join('')}</tbody>
       </table></div>
@@ -619,6 +679,8 @@
         puis sa prévision a été comparée au solde réel. <b>MAE</b> = erreur moyenne absolue, <b>RMSE</b> = erreur quadratique (pénalise les grosses erreurs).
         Le modèle le plus précis est ensuite ré-entraîné sur tout l'historique.
         ${bestKey === 'holt' ? `Paramètres de Holt optimisés : α = ${num(fitted.alpha)} (niveau), β = ${num(fitted.beta)} (tendance).` : ''}
+        ${bestKey === 'holtwinters' ? `Paramètres optimisés : α = ${num(fitted.alpha)} (niveau), β = ${num(fitted.beta)} (tendance), γ = ${num(fitted.gamma)} (cycle hebdomadaire).` : ''}
+        ${cmp.rows.length < 5 ? `<br><i>Le modèle saisonnier de Holt-Winters entre en compétition à partir de 4 semaines d'historique (cycle hebdomadaire).</i>` : ''}
         La régression linéaire explique <b>${pct(r2)}</b> de la variance du solde (R²)${r2 < 0.5 ? ' : le solde suit mal une droite, d\'où l\'intérêt de comparer plusieurs modèles' : ''}.
         ${cmp.rows[0].key === 'naif' ? 'Le modèle naïf gagne : les mouvements récents sont peu prévisibles, aucune tendance fiable ne se dégage encore.' : ''}
       </div>`;
@@ -667,7 +729,7 @@
       const list = tx.filter(t => t.type === type);
       if (list.length < 5) return { name, note: `${list.length} ${name} : au moins 5 sont nécessaires.` };
       const vals = list.map(t => t.amount), med = median(vals), m = mad(vals);
-      if (!m) return { name, note: `Plus de la moitié des ${name} ont le même montant (${fmt(med)} MAD) : pas de dispersion à analyser.` };
+      if (!m) return { name, note: `Plus de la moitié des ${name} ont le même montant (${fmt(med)} ${DEV()}) : pas de dispersion à analyser.` };
       const flagged = list.map(t => ({ t, z: 0.6745 * (t.amount - med) / m })).filter(o => Math.abs(o.z) > 3.5);
       return { name, one, adj, med, flagged };
     });
@@ -676,10 +738,10 @@
       ${flagged.length ? `<div class="tablewrap"><table>
         <thead><tr><th>Date</th><th>Membre</th><th>Type</th><th>Montant</th><th>z robuste</th></tr></thead>
         <tbody>${flagged.sort((a, b) => Math.abs(b.z) - Math.abs(a.z)).map(o => `<tr><td>${dateFr(o.t.ts)}</td><td>${esc(o.t.person)}</td>
-          <td>${o.t.type === 'deposit' ? 'Dépôt' : 'Dépense'}</td><td>${fmt(o.t.amount)} MAD</td><td>${num(o.z)}</td></tr>`).join('')}</tbody>
+          <td>${o.t.type === 'deposit' ? 'Dépôt' : 'Dépense'}</td><td>${fmt(o.t.amount)} ${DEV()}</td><td>${num(o.z)}</td></tr>`).join('')}</tbody>
       </table></div>` : ''}
       <div class="explain">
-        ${parts.map(p => p.note ? p.note : (p.flagged.length ? `<b>${p.flagged.length}</b> ${p.flagged.length > 1 ? p.name : p.one} ${p.adj}${p.flagged.length > 1 ? 's' : ''}` : `Aucun${p.adj.endsWith('e') ? 'e' : ''} ${p.one} ${p.adj}`) + ` sur la période (montant médian ${fmt(p.med)} MAD).`).join('<br>')}
+        ${parts.map(p => p.note ? p.note : (p.flagged.length ? `<b>${p.flagged.length}</b> ${p.flagged.length > 1 ? p.name : p.one} ${p.adj}${p.flagged.length > 1 ? 's' : ''}` : `Aucun${p.adj.endsWith('e') ? 'e' : ''} ${p.one} ${p.adj}`) + ` sur la période (montant médian ${fmt(p.med)} ${DEV()}).`).join('<br>')}
         <br>Une opération est signalée quand son montant s'écarte fortement de l'habitude (|z| &gt; 3,5, calculé avec la médiane et la MAD, insensibles aux valeurs extrêmes).
         Ce n'est pas forcément une erreur : vérifiez simplement qu'elle est correcte.
       </div>`;

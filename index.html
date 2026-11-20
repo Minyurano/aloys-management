@@ -13,7 +13,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="categories.js"></script>
 <script src="analytics.js"></script>
+<script src="features.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -256,6 +258,37 @@
   .an-models tr.best td{color:var(--gold-light);font-weight:600;}
   .an-table summary{cursor:pointer;color:var(--gold-light);margin-top:6px;}
   .an-table table{margin-top:6px;}
+  .foyer-choice{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 10px;font-size:13px;color:var(--text);}
+  .foyer-choice label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+  .hint{display:block;color:var(--muted);font-size:11.5px;margin-top:4px;line-height:1.45;}
+  .ia-hint{display:block;color:var(--gold-light);font-size:11.5px;margin-top:4px;min-height:14px;}
+  .foyer-card{background:var(--panel-light);border:1px solid var(--hair);border-radius:10px;padding:14px 16px;margin-bottom:16px;}
+  .foyer-code{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:6px;font-size:13px;}
+  .foyer-code b{font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:2px;color:var(--gold-light);}
+  .eq-list{display:flex;flex-direction:column;gap:8px;}
+  .eq-item{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--panel-light);border:1px solid var(--hair);border-radius:8px;padding:10px 14px;font-size:13.5px;}
+  .eq-item b{color:var(--gold-light);font-family:'IBM Plex Mono',monospace;}
+  .eq-arrow{color:var(--muted);font-size:12px;}
+  .bud-alerts{display:flex;flex-direction:column;gap:6px;background:rgba(217,89,38,0.12);border:1px solid rgba(217,89,38,0.45);border-radius:8px;padding:12px 14px;font-size:13px;margin-bottom:6px;}
+  .bud-alerts b{color:#f0a37f;}
+  .bud-list{display:flex;flex-direction:column;gap:14px;margin-top:14px;}
+  .bud-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;}
+  .bud-badge{font-size:11.5px;color:var(--muted);}
+  .bud-badge.s-depasse{color:#f08a8a;} .bud-badge.s-risque{color:#f0a37f;} .bud-badge.s-surveiller{color:var(--gold-light);} .bud-badge.s-ok{color:#5fc59a;}
+  .bud-bar{position:relative;height:10px;background:rgba(140,160,188,0.15);border-radius:5px;margin:6px 0 4px;overflow:hidden;}
+  .bud-proj{position:absolute;left:0;top:0;bottom:0;background:rgba(232,236,241,0.18);border-radius:5px;}
+  .bud-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:#199e70;}
+  .bud-fill.s-surveiller{background:#c98500;} .bud-fill.s-risque{background:#d95926;} .bud-fill.s-depasse{background:#e66767;} .bud-fill.s-libre{background:#3987e5;}
+  .bud-meta{font-size:11.5px;color:var(--muted);}
+  .bud-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;}
+  .bud-form .field span{font-size:12px;color:var(--muted);}
+  .as-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .as-log{background:var(--panel-light);border:1px solid var(--hair);border-radius:10px;padding:12px;max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:8px;}
+  .as-empty{color:var(--muted);font-size:13px;text-align:center;padding:16px;}
+  .as-q{align-self:flex-end;background:var(--gold);color:#241c05;border-radius:12px 12px 2px 12px;padding:8px 12px;font-size:13px;max-width:80%;}
+  .as-a{align-self:flex-start;background:var(--panel);border:1px solid var(--hair);border-radius:12px 12px 12px 2px;padding:10px 12px;font-size:13px;line-height:1.55;max-width:90%;}
+  .as-a b{color:var(--gold-light);} .as-a table{margin-top:8px;}
+  .as-form{display:flex;gap:8px;margin-top:10px;} .as-form input{flex:1;}
   .an-method{color:var(--muted);font-size:11.5px;line-height:1.6;margin-top:22px;border-top:1px dashed var(--hair);padding-top:12px;}
 </style>
 </head>
@@ -277,6 +310,7 @@
     <select id="activeMember"></select>
     <div class="balance-peek" id="entryCount">0 entrées enregistrées</div>
     <button class="btn secondary" id="voiceBtn" style="font-size:11.5px;padding:6px 12px;"></button>
+    <button class="btn secondary" id="notifBtn" style="font-size:11.5px;padding:6px 12px;" aria-pressed="false"></button>
     <div class="userbadge" id="userBadge"></div>
     <button class="btn secondary" id="logoutBtn" style="font-size:11.5px;padding:6px 12px;">Se déconnecter</button>
   </div>
@@ -293,7 +327,7 @@
     <div class="card catcard" data-category="rapports">
       <span class="icon">📈</span>
       <div class="label">Rapports</div>
-      <div class="sub">Statistiques, graphiques, prévisions</div>
+      <div class="sub">Statistiques, graphiques, prévisions, équilibre, budgets, assistant</div>
     </div>
     <div class="card catcard" data-category="administration">
       <span class="icon">🔐</span>
@@ -358,6 +392,30 @@
       <div class="label">Analyse &amp; modèles</div>
       <div class="sub">Camemberts, histogrammes, prévision et comparaison de modèles</div>
     </div>
+    <div class="card" data-panel="equilibre" data-category="rapports">
+      <div class="num">12 · ÉQUILIBRE</div>
+      <span class="icon">⚖️</span>
+      <div class="label">Qui doit combien ?</div>
+      <div class="sub">Contributions de chacun et remboursements, en un minimum de virements</div>
+    </div>
+    <div class="card" data-panel="budgets" data-category="rapports">
+      <div class="num">13 · BUDGETS</div>
+      <span class="icon">🎯</span>
+      <div class="label">Budgets et alertes</div>
+      <div class="sub">Budget mensuel par catégorie, projection de fin de mois</div>
+    </div>
+    <div class="card" data-panel="assistant" data-category="rapports">
+      <div class="num">14 · ASSISTANT</div>
+      <span class="icon">🤖</span>
+      <div class="label">Assistant du registre</div>
+      <div class="sub">Posez vos questions en français</div>
+    </div>
+    <div class="card" data-panel="rapport" data-category="export">
+      <div class="num">15 · RAPPORT</div>
+      <span class="icon">🖨️</span>
+      <div class="label">Rapport mensuel PDF</div>
+      <div class="sub">Une page prête à partager, avec graphiques</div>
+    </div>
     <div class="card" data-panel="download" data-category="export">
       <div class="num">09 · EXPORT</div>
       <span class="icon">⬇️</span>
@@ -386,7 +444,7 @@
       <div class="num">11 · FACTURE</div>
       <span class="icon">🧾</span>
       <div class="label">Facture de retrait</div>
-      <div class="sub">Enregistrer un retrait (pays Maroc, fonction Étudiant) → ajoute automatiquement une dépense</div>
+      <div class="sub">Retrait avec catégorie (suggérée par l'IA) et photo du reçu → ajoute automatiquement une dépense</div>
     </div>
   </div>
 
@@ -416,6 +474,25 @@
       <label>Nom complet</label>
       <input type="text" id="authName" placeholder="Ex. MINYURANO Aloys" autocomplete="name">
     </div>
+    <div id="authFoyerField" style="display:none">
+      <div class="foyer-choice" role="radiogroup" aria-label="Foyer">
+        <label><input type="radio" name="foyerMode" value="join" checked> Rejoindre un foyer</label>
+        <label><input type="radio" name="foyerMode" value="create"> Créer un nouveau foyer</label>
+      </div>
+      <div class="field" id="foyerJoin">
+        <label>Code d'invitation</label>
+        <input type="text" id="authCode" placeholder="Ex. 1A93B8F4" maxlength="8" autocomplete="off" style="text-transform:uppercase">
+        <small class="hint" id="authCodeHint">Demandez le code à l'administrateur de votre foyer.</small>
+      </div>
+      <div id="foyerCreate" style="display:none">
+        <div class="field"><label>Nom du foyer</label><input type="text" id="authFoyerNom" placeholder="Ex. Coloc Tanger centre" maxlength="80"></div>
+        <div class="field"><label>Devise</label><select id="authDevise">
+          <option value="MAD">Dirham marocain (MAD)</option><option value="EUR">Euro (EUR)</option><option value="USD">Dollar US (USD)</option>
+          <option value="BIF">Franc burundais (BIF)</option><option value="MRU">Ouguiya (MRU)</option><option value="XOF">Franc CFA (XOF)</option><option value="CAD">Dollar canadien (CAD)</option>
+        </select></div>
+        <small class="hint">Vous serez l'administrateur de ce foyer et recevrez un code à partager avec vos colocataires.</small>
+      </div>
+    </div>
     <div class="field">
       <label>E-mail</label>
       <input type="email" id="authEmail" placeholder="vous@exemple.com" autocomplete="email">
@@ -431,7 +508,7 @@
   <div class="authcard" id="pendingBox" style="display:none;text-align:center">
     <div style="font-size:40px">⏳</div>
     <h2>Compte en attente</h2>
-    <p class="sub">Bonjour <b id="pendingName"></b>, votre compte a bien été créé. L'administrateur doit maintenant le valider avant que vous puissiez accéder au registre.</p>
+    <p class="sub">Bonjour <b id="pendingName"></b>, votre compte a bien été créé. L'administrateur<span id="pendingFoyer"></span> doit maintenant le valider avant que vous puissiez accéder au registre.</p>
     <button class="btn secondary" id="pendingLogout">Se déconnecter</button>
   </div>
 </div>
@@ -464,7 +541,12 @@ function avatarHTML(name, size="sm") {
   return `<span class="${cls}" style="background:${data.color};">${data.initial}</span>`;
 }
 
-let DATA = { transactions: [], factures: [], target: null };
+let DATA = { transactions: [], factures: [], target: null, budgets: {}, seuil: null };
+
+// Devise du foyer (définie dans Administration → Membres et rôles)
+const DEVISE_NOMS = { MAD: "dirhams", EUR: "euros", USD: "dollars", BIF: "francs burundais", MRU: "ouguiyas", XOF: "francs CFA", CAD: "dollars canadiens" };
+function DEV(){ try{ return (FOYER && FOYER.devise) || "MAD"; }catch(e){ return "MAD"; } }
+function DEVNOM(){ return DEVISE_NOMS[DEV()] || DEV(); }
 let ADMIN_UNLOCKED = false;
 
 function fmt(n){
@@ -591,7 +673,11 @@ function renderPanel(name, silent){
     target: panelTarget,
     facture: panelFacture,
     members: panelMembers,
-    audit: panelAudit
+    audit: panelAudit,
+    equilibre: (r)=> panelEquilibre(r),
+    budgets: (r)=> panelBudgets(r),
+    assistant: (r)=> panelAssistant(r),
+    rapport: (r)=> panelRapport(r)
   };
   if(window.destroyAnalyticsCharts) destroyAnalyticsCharts();
   panelHost.innerHTML = '';
@@ -614,12 +700,12 @@ function speakPanel(name){
       break;
     case 'cash':
       msg = ADMIN_UNLOCKED
-        ? `Panneau Argent en caisse ouvert. Le solde actuel est de ${fmt(bal)} dirhams.`
+        ? `Panneau Argent en caisse ouvert. Le solde actuel est de ${fmt(bal)} ${DEVNOM()}.`
         : `Panneau Argent en caisse ouvert. Réservé à l'administrateur.`;
       break;
     case 'consumed': {
       const count = DATA.transactions.filter(t=>t.type==='consumption').length;
-      msg = `Panneau Dépenses ouvert. Le total des dépenses enregistrées est de ${fmt(totalConsumed())} dirhams, réparti sur ${count} entrées. Ce panneau est en lecture seule ; les dépenses sont créées via la fonction Facture.`;
+      msg = `Panneau Dépenses ouvert. Le total des dépenses enregistrées est de ${fmt(totalConsumed())} ${DEVNOM()}, réparti sur ${count} entrées. Ce panneau est en lecture seule ; les dépenses sont créées via la fonction Facture.`;
       break;
     }
     case 'status':
@@ -633,7 +719,7 @@ function speakPanel(name){
         msg = `Panneau Prévisions ouvert. Pas assez de jours d'historique (${series.length}).`;
       }else{
         const {slope} = linearRegression(series);
-        msg = `Panneau Prévisions ouvert. La caisse évolue de ${fmt(slope)} dirhams par jour. ` + (slope < 0 ? 'À ce rythme, le fonds diminue.' : slope > 0 ? 'Le fonds augmente.' : 'Le fonds est stable.');
+        msg = `Panneau Prévisions ouvert. La caisse évolue de ${fmt(slope)} ${DEVNOM()} par jour. ` + (slope < 0 ? 'À ce rythme, le fonds diminue.' : slope > 0 ? 'Le fonds augmente.' : 'Le fonds est stable.');
       }
       break;
     }
@@ -649,7 +735,7 @@ function speakPanel(name){
     }
     case 'target':
       msg = ADMIN_UNLOCKED
-        ? (DATA.target ? `Panneau Objectif ouvert. Il reste ${fmt(remainingTarget())} dirhams.` : `Panneau Objectif ouvert. Aucun objectif.`)
+        ? (DATA.target ? `Panneau Objectif ouvert. Il reste ${fmt(remainingTarget())} ${DEVNOM()}.` : `Panneau Objectif ouvert. Aucun objectif.`)
         : `Panneau Objectif ouvert. Réservé à l'administrateur.`;
       break;
     case 'download':
@@ -673,7 +759,7 @@ function panelDeposit(root){
         <input type="text" value="${activeMember()}" disabled style="opacity:0.7;">
       </div>
       <div class="field">
-        <label>Montant (MAD)</label>
+        <label>Montant (${DEV()})</label>
         <input type="number" id="depAmount" min="0" step="0.01" placeholder="ex. 100">
       </div>
       <button class="btn" id="depSubmit">Enregistrer le dépôt</button>
@@ -691,7 +777,7 @@ function panelDeposit(root){
     saveData(DATA);
     refreshChrome();
     msg.className='msg ok show';
-    msg.textContent = `Enregistré : ${activeMember()} a déposé ${fmt(amt)} MAD le ${p.day} ${p.date} ${p.month} ${p.year} à ${p.hour}.`;
+    msg.textContent = `Enregistré : ${activeMember()} a déposé ${fmt(amt)} ${DEV()} le ${p.day} ${p.date} ${p.month} ${p.year} à ${p.hour}.`;
     root.querySelector('#depAmount').value='';
   };
 }
@@ -712,7 +798,7 @@ function panelDatabase(root){
     <div id="dbDeleteGate"></div>
     <div class="tablewrap" id="dbTableWrap">
       <table>
-        <thead><tr><th>Année</th><th>Mois</th><th>Date</th><th>Jour</th><th>Heure</th><th>Membre</th><th>Type</th><th>Montant (MAD)</th>${ADMIN_UNLOCKED?'<th></th>':''}</tr></thead>
+        <thead><tr><th>Année</th><th>Mois</th><th>Date</th><th>Jour</th><th>Heure</th><th>Membre</th><th>Type</th><th>Montant (${DEV()})</th>${ADMIN_UNLOCKED?'<th></th>':''}</tr></thead>
         <tbody>
           ${rows.length? rows.map(t=>`
             <tr>
@@ -793,7 +879,7 @@ function panelCash(root){
       if(isAdmin()){
         ADMIN_UNLOCKED = true;
         panelCash(root);
-        speakText(`Déverrouillé. Solde : ${fmt(balance())} dirhams.`);
+        speakText(`Déverrouillé. Solde : ${fmt(balance())} ${DEVNOM()}.`);
       }else{
         msg.className='msg err show'; msg.textContent="Accès réservé à l'administrateur.";
       }
@@ -805,9 +891,9 @@ function panelCash(root){
     <h2>🔐 Argent en caisse <span style="font-size:11px;color:var(--green);font-family:'IBM Plex Mono',monospace;">ADMIN DÉVERROUILLÉ</span></h2>
     <p class="role">Total des fonds actuellement dans la caisse commune.</p>
     <div class="statgrid">
-      <div class="statbox"><div class="k">Argent en caisse</div><div class="v">${fmt(bal)} MAD</div></div>
-      <div class="statbox"><div class="k">Total des dépôts</div><div class="v">${fmt(totalDeposits())} MAD</div></div>
-      <div class="statbox"><div class="k">Total des dépenses</div><div class="v">${fmt(totalConsumed())} MAD</div></div>
+      <div class="statbox"><div class="k">Argent en caisse</div><div class="v">${fmt(bal)} ${DEV()}</div></div>
+      <div class="statbox"><div class="k">Total des dépôts</div><div class="v">${fmt(totalDeposits())} ${DEV()}</div></div>
+      <div class="statbox"><div class="k">Total des dépenses</div><div class="v">${fmt(totalConsumed())} ${DEV()}</div></div>
     </div>
     <div class="row" style="margin-top:16px;">
       <button class="btn secondary" id="lockAgain">Verrouiller</button>
@@ -823,7 +909,7 @@ function panelConsumed(root){
     <h2>📉 Argent dépensé</h2>
     <p class="role"><b>Ce panneau est en lecture seule.</b> Les dépenses sont désormais enregistrées automatiquement via la fonction <b>FACTURE</b> (carte n°11). Vous trouverez ci‑dessous l'historique complet des dépenses.</p>
     <div class="statgrid" style="margin-top:0;">
-      <div class="statbox"><div class="k">Total dépensé à ce jour</div><div class="v">-${fmt(totalConsumed())} MAD</div></div>
+      <div class="statbox"><div class="k">Total dépensé à ce jour</div><div class="v">-${fmt(totalConsumed())} ${DEV()}</div></div>
     </div>
 
     <h3 style="font-family:'Fraunces',serif;font-size:15px;margin:22px 0 8px;display:flex;align-items:center;gap:10px;">
@@ -968,12 +1054,12 @@ function panelForecast(root){
   const cards = horizons.map(h=>{
     const projDay = lastDay + h.days;
     const proj = slope*projDay + intercept;
-    return `<div class="fbox"><div class="h">${h.label}</div><div class="n">${fmt(proj)} MAD</div></div>`;
+    return `<div class="fbox"><div class="h">${h.label}</div><div class="n">${fmt(proj)} ${DEV()}</div></div>`;
   }).join('');
   body.innerHTML = `
     <div class="forecastgrid">${cards}</div>
     <div class="explain">
-      Tendance : le solde évolue d'environ <b>${fmt(slope)} MAD par jour</b> sur <b>${n}</b> jour(s).
+      Tendance : le solde évolue d'environ <b>${fmt(slope)} ${DEV()} par jour</b> sur <b>${n}</b> jour(s).
       ${slope < 0 ? 'Le fonds diminue — pensez à de nouveaux dépôts.' : slope > 0 ? 'Le fonds augmente.' : 'Le fonds est stable.'}
     </div>
   `;
@@ -1034,7 +1120,7 @@ function panelStats(root){
     </div>
     <div class="explain">
       Sur <b>${s.n}</b> entrées, dépôts : <b>${deposits.length}</b>, dépenses : <b>${consumption.length}</b>.
-      La taille moyenne est de <b>${fmt(s.mean)} MAD</b> avec un écart‑type de <b>${fmt(s.std)}</b>.
+      La taille moyenne est de <b>${fmt(s.mean)} ${DEV()}</b> avec un écart‑type de <b>${fmt(s.std)}</b>.
       Le coefficient de variation (écart‑type / moyenne) mesure la dispersion relative : sous 30 %, les montants sont homogènes.
       Pour les graphiques et les modèles de prévision, ouvrez la carte <b>08 · Analyse &amp; modèles</b>.
     </div>
@@ -1070,13 +1156,13 @@ function panelCharts(root){
   const peak = binInfo.reduce((a,b)=> b.count>a.count? b:a, binInfo[0]);
   document.getElementById('histExplainHost').innerHTML = `<div class="explain">
     Distribution sur <b>${consumption.length}</b> dépenses en ${binInfo.length} tranches.
-    Tranche la plus fréquente : <b>${fmt(peak.lo)}–${fmt(peak.hi)} MAD</b> (${peak.count} entrée${peak.count===1?'':'s'}).
+    Tranche la plus fréquente : <b>${fmt(peak.lo)}–${fmt(peak.hi)} ${DEV()}</b> (${peak.count} entrée${peak.count===1?'':'s'}).
   </div>`;
 
   const q1 = quantile(s.sorted,0.25), q3 = quantile(s.sorted,0.75), iqr = q3-q1;
   const outliers = consumption.filter(v=> v < q1-1.5*iqr || v > q3+1.5*iqr);
   document.getElementById('boxExplainHost').innerHTML = `<div class="explain">
-    Médiane : <b>${fmt(s.median)} MAD</b>, 50 % centraux entre <b>${fmt(q1)}</b> et <b>${fmt(q3)} MAD</b> (IQR = ${fmt(iqr)}).
+    Médiane : <b>${fmt(s.median)} ${DEV()}</b>, 50 % centraux entre <b>${fmt(q1)}</b> et <b>${fmt(q3)} ${DEV()}</b> (IQR = ${fmt(iqr)}).
     ${outliers.length? `<b>${outliers.length}</b> valeur${outliers.length===1?'':'s'} aberrante${outliers.length===1?'':'s'}.` : 'Aucune valeur aberrante.'}
   </div>`;
 }
@@ -1201,12 +1287,14 @@ function panelDownload(root){
     ev.target.value = '';
   };
   root.querySelector('#dlCsv').onclick = ()=>{
-    const header = ['Année','Mois','Date','Jour','Heure','Membre','Type','Montant(MAD)'];
+    const header = ['Année','Mois','Date','Jour','Heure','Membre','Type','Montant(' + DEV() + ')','Catégorie','Description'];
     const lines = [header.join(',')];
     DATA.transactions.forEach(t=>{
-      lines.push([t.year,t.month,t.date,t.day,t.hour,`"${t.person}"`,t.type,t.amount].join(','));
+      const q = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+      const cat = t.type === 'consumption' && window.AloysCategories ? AloysCategories.parId(AloysCategories.categorieDe(t)).label : '';
+      lines.push([t.year,t.month,t.date,t.day,t.hour,q(t.person),t.type,t.amount,q(cat),q(t.description)].join(','));
     });
-    downloadBlob(lines.join('\n'), 'aloys_management_transactions.csv', 'text/csv');
+    downloadBlob('\ufeff' + lines.join('\n'), 'aloys_management_transactions.csv', 'text/csv;charset=utf-8');
     flashMsg(root,'CSV téléchargé.');
   };
   root.querySelector('#dlJson').onclick = ()=>{
@@ -1257,7 +1345,7 @@ function panelTarget(root){
       if(isAdmin()){
         ADMIN_UNLOCKED = true;
         panelTarget(root);
-        speakText(DATA.target ? `Déverrouillé. Il reste ${fmt(remainingTarget())} dirhams.` : `Déverrouillé. Aucun objectif.`);
+        speakText(DATA.target ? `Déverrouillé. Il reste ${fmt(remainingTarget())} ${DEVNOM()}.` : `Déverrouillé. Aucun objectif.`);
       }else{
         msg.className='msg err show'; msg.textContent="Accès réservé à l'administrateur.";
       }
@@ -1275,18 +1363,18 @@ function panelTarget(root){
 
     ${hasTarget ? `
       <div class="statgrid">
-        <div class="statbox"><div class="k">Objectif fixé</div><div class="v">${fmt(DATA.target.amount)} MAD</div></div>
+        <div class="statbox"><div class="k">Objectif fixé</div><div class="v">${fmt(DATA.target.amount)} ${DEV()}</div></div>
         <div class="statbox"><div class="k">Reste à collecter</div><div class="v">${remaining<=0 ? '0.00 ✅' : fmt(remaining)}</div></div>
         <div class="statbox"><div class="k">Progression</div><div class="v">${percentDone}%</div></div>
       </div>
       <div class="explain" style="margin-top:14px;">
-        ${remaining<=0 ? 'Objectif atteint.' : `Encore <b>${fmt(remaining)} MAD</b> à collecter.`}
+        ${remaining<=0 ? 'Objectif atteint.' : `Encore <b>${fmt(remaining)} ${DEV()}</b> à collecter.`}
       </div>
     ` : `<div class="explain">Aucun objectif défini.</div>`}
 
     <div class="row" style="margin-top:18px;">
       <div class="field">
-        <label>${hasTarget? 'Nouveau montant (remplace)' : 'Montant à collecter (MAD)'}</label>
+        <label>${hasTarget? 'Nouveau montant (remplace)' : 'Montant à collecter (' + DEV() + ')'}</label>
         <input type="number" id="targetAmount" min="0" step="0.01" placeholder="ex. 500">
       </div>
       <button class="btn" id="targetSubmit">${hasTarget? 'Mettre à jour' : 'Définir'}</button>
@@ -1304,7 +1392,7 @@ function panelTarget(root){
     DATA.target = { amount: amt, setAt: new Date().toISOString(), baselineDeposits: totalDeposits() };
     saveData(DATA);
     msg.className='msg ok show';
-    msg.textContent = `Objectif fixé à ${fmt(amt)} MAD.`;
+    msg.textContent = `Objectif fixé à ${fmt(amt)} ${DEV()}.`;
     panelTarget(root);
   };
   if(hasTarget){
@@ -1341,8 +1429,23 @@ function panelFacture(root) {
         <input type="text" id="factureTime" placeholder="HH:MM" value="${nowParts().hour}">
       </div>
       <div class="field">
-        <label>Montant (MAD)</label>
+        <label>Montant (${DEV()})</label>
         <input type="number" id="factureMontant" min="0" step="0.01" placeholder="ex. 150">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:2;min-width:220px;">
+        <label>Description (ce qui a été acheté)</label>
+        <input type="text" id="factureDesc" placeholder="ex. Marjane : huile, riz, lait" maxlength="140">
+      </div>
+      <div class="field">
+        <label>Catégorie</label>
+        <select id="factureCat">${(window.AloysCategories ? AloysCategories.CATEGORIES : []).map(c => `<option value="${c.id}" ${c.id==='autre'?'selected':''}>${c.icon} ${c.label}</option>`).join('')}</select>
+        <small class="ia-hint" id="factureHint" aria-live="polite"></small>
+      </div>
+      <div class="field">
+        <label>Reçu (photo, facultatif)</label>
+        <input type="file" id="factureRecu" accept="image/*,application/pdf">
       </div>
     </div>
     <div class="row">
@@ -1371,6 +1474,19 @@ function panelFacture(root) {
   const listDiv = root.querySelector('#factureList');
   renderFactureList(listDiv);
 
+  // Suggestion automatique de la catégorie (classifieur bayésien naïf)
+  const descIn = root.querySelector('#factureDesc'), catSel = root.querySelector('#factureCat'), hint = root.querySelector('#factureHint');
+  let catManuelle = false;
+  catSel.onchange = ()=>{ catManuelle = true; hint.textContent = ''; };
+  descIn.oninput = ()=>{
+    if(!window.AloysCategories) return;
+    const r = AloysCategories.suggerer(descIn.value);
+    if(r.categorie && !catManuelle){
+      catSel.value = r.categorie;
+      hint.textContent = `🤖 Suggestion IA : ${AloysCategories.parId(r.categorie).label}`;
+    }else if(!r.categorie && !catManuelle){ hint.textContent = ''; }
+  };
+
   // Gestion du déverrouillage pour suppression des factures
   const unlockBtn = root.querySelector('#unlockFactureDelete');
   if(unlockBtn){
@@ -1398,7 +1514,7 @@ function panelFacture(root) {
     };
   }
 
-  root.querySelector('#factureSubmit').onclick = ()=>{
+  root.querySelector('#factureSubmit').onclick = async ()=>{
     const nom = root.querySelector('#factureNom').value.trim();
     const time = root.querySelector('#factureTime').value.trim();
     const montant = parseFloat(root.querySelector('#factureMontant').value);
@@ -1408,12 +1524,28 @@ function panelFacture(root) {
     if(!time){ msg.className='msg err show'; msg.textContent='Veuillez saisir une heure.'; return; }
     if(!montant || montant<=0){ msg.className='msg err show'; msg.textContent='Montant invalide.'; return; }
 
+    const description = root.querySelector('#factureDesc').value.trim();
+    const categorie = root.querySelector('#factureCat').value || 'autre';
+    const fichier = root.querySelector('#factureRecu').files[0];
+    const btn = root.querySelector('#factureSubmit');
+    const factureId = Date.now() + Math.random();
+    let recu = null;
+    if(fichier){
+      btn.disabled = true; btn.textContent = 'Envoi du reçu…';
+      try{ recu = await uploadRecu(fichier, factureId); }
+      catch(e){ msg.className='msg err show'; msg.textContent = 'Reçu non envoyé : ' + (e.message || e) + '. La facture n\'a pas été enregistrée.'; btn.disabled = false; btn.textContent = 'Enregistrer la facture'; return; }
+      btn.disabled = false; btn.textContent = 'Enregistrer la facture';
+    }
+
     // 1. Enregistrer la facture
     const facture = {
-      id: Date.now() + Math.random(),
+      id: factureId,
       nom,
       time,
       montant,
+      description,
+      categorie,
+      recu,
       pays: 'Maroc',
       fonction: 'Étudiant',
       dateCreation: new Date().toISOString()
@@ -1427,6 +1559,9 @@ function panelFacture(root) {
       person: nom,
       type: 'consumption',
       amount: montant,
+      categorie,
+      description,
+      recu,
       iso: p.iso,
       hour: time,
       day: p.day,
@@ -1438,7 +1573,7 @@ function panelFacture(root) {
     saveData(DATA);
     refreshChrome();
     msg.className='msg ok show';
-    msg.textContent = `Facture enregistrée pour ${nom} de ${fmt(montant)} MAD. Dépense automatiquement ajoutée.`;
+    msg.textContent = `Facture enregistrée pour ${nom} de ${fmt(montant)} ${DEV()}. Dépense automatiquement ajoutée.`;
 
     root.querySelector('#factureNom').value = activeMember();
     // Mettre à jour l'avatar dans le champ nom
@@ -1449,6 +1584,11 @@ function panelFacture(root) {
     }
     root.querySelector('#factureTime').value = nowParts().hour;
     root.querySelector('#factureMontant').value = '';
+    root.querySelector('#factureDesc').value = '';
+    root.querySelector('#factureRecu').value = '';
+    root.querySelector('#factureCat').value = 'autre';
+    root.querySelector('#factureHint').textContent = '';
+    catManuelle = false;
     renderFactureList(listDiv);
   };
 }
@@ -1463,7 +1603,7 @@ function renderFactureList(container) {
   const sorted = [...factures].sort((a,b)=> new Date(b.dateCreation) - new Date(a.dateCreation));
 
   let html = `<div class="tablewrap"><table>
-    <thead><tr><th>Avatar</th><th>Nom</th><th>Heure</th><th>Montant (MAD)</th><th>Pays</th><th>Fonction</th><th>Date création</th><th>Action</th>${ADMIN_UNLOCKED?'<th></th>':''}</tr></thead><tbody>`;
+    <thead><tr><th>Avatar</th><th>Nom</th><th>Heure</th><th>Montant (${DEV()})</th><th>Catégorie</th><th>Description</th><th>Date création</th><th>Reçu</th><th>Action</th>${ADMIN_UNLOCKED?'<th></th>':''}</tr></thead><tbody>`;
   sorted.forEach(f => {
     const date = new Date(f.dateCreation);
     const dateStr = date.toLocaleDateString('fr-FR') + ' ' + date.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
@@ -1472,9 +1612,10 @@ function renderFactureList(container) {
       <td>${f.nom}</td>
       <td>${f.time}</td>
       <td>${fmt(f.montant)}</td>
-      <td>${f.pays}</td>
-      <td>${f.fonction}</td>
+      <td>${window.AloysCategories ? AloysCategories.libelle(f.categorie) : (f.categorie || '')}</td>
+      <td>${esc(f.description || '—')}</td>
       <td>${dateStr}</td>
+      <td>${f.recu ? `<button class="btn secondary facture-recu-btn" data-recu="${esc(f.recu)}" style="padding:4px 10px;font-size:11px;">📎 Voir</button>` : '—'}</td>
       <td><button class="btn secondary facture-dl-btn" data-id="${f.id}" style="padding:4px 10px;font-size:11px;">Télécharger</button></td>
       ${ADMIN_UNLOCKED? `<td><button class="btn danger facture-del-btn" data-del="${f.id}" style="padding:4px 10px;font-size:11px;">Supprimer</button></td>` : ''}
     </tr>`;
@@ -1482,8 +1623,10 @@ function renderFactureList(container) {
   html += `</tbody></table></div>`;
   container.innerHTML = html;
 
-  // Téléchargement et suppression (délégation)
-  container.addEventListener('click', function(e){
+  // Téléchargement, reçu et suppression (délégation, un seul gestionnaire)
+  container.onclick = function(e){
+    const recuBtn = e.target.closest('.facture-recu-btn');
+    if(recuBtn){ openRecu(recuBtn.dataset.recu); return; }
     const dlBtn = e.target.closest('.facture-dl-btn');
     if(dlBtn){
       const id = dlBtn.dataset.id;
@@ -1500,7 +1643,7 @@ function renderFactureList(container) {
         renderFactureList(container);
       }
     }
-  });
+  };
 }
 
 function downloadFacture(facture) {
@@ -1519,7 +1662,9 @@ function downloadFacture(facture) {
     `  Avatar             : ${avatarText}`,
     `  Nom du retraitant   : ${facture.nom}`,
     `  Heure de retrait    : ${facture.time}`,
-    `  Montant             : ${fmt(facture.montant)} MAD`,
+    `  Montant             : ${fmt(facture.montant)} ${DEV()}`,
+    `  Catégorie           : ${window.AloysCategories ? AloysCategories.parId(facture.categorie).label : (facture.categorie || '—')}`,
+    `  Description         : ${facture.description || '—'}`,
     `  Pays                : ${facture.pays}`,
     `  Fonction            : ${facture.fonction}`,
     `  Date d'émission     : ${dateStr}`,
@@ -1550,9 +1695,12 @@ document.getElementById('voiceBtn').onclick = ()=>{
   if(!voiceEnabled() && 'speechSynthesis' in window) window.speechSynthesis.cancel();
 };
 
+document.getElementById('notifBtn').onclick = ()=> window.AloysNotify && AloysNotify.basculer();
+
 /* initialisation */
 refreshChrome();
 renderVoiceStatus();
+if(window.AloysNotify) AloysNotify.bouton();
 </script>
 <script>
 /* =========================================================
@@ -1565,9 +1713,11 @@ const SUPABASE_KEY = "sb_publishable_vYy564LypO4gasy3poAuYg_Fgjz2oAl";
 const CACHE_KEY = "aloys_mgmt_cache_v2";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let CURRENT = null;          // profil connecté {id,email,display_name,role}
+let CURRENT = null;          // profil connecté {id,email,display_name,role,foyer_id}
+let FOYER = null;            // foyer du compte connecté {id,nom,devise,code_invitation}
 let PROFILES = [];           // tous les profils visibles
-let SYNCED = { tx: new Set(), fac: new Set(), target: "null" };
+let SYNCED = { tx: new Set(), fac: new Set(), settings: {} };
+const SETTING_KEYS = ["target", "budgets", "seuil"];
 let OFFLINE_MODE = false;
 let syncChain = Promise.resolve();
 let realtimeChannel = null;
@@ -1578,31 +1728,41 @@ const ROLE_LABELS = { admin: "Administrateur", membre: "Membre", lecture: "Lectu
 function rowToTx(r){ return Object.assign({}, r.payload, { id: r.id, type: r.type, person: r.person, amount: Number(r.amount) }); }
 function rowToFac(r){ return Object.assign({}, r.payload, { id: r.id, nom: r.nom, montant: Number(r.montant) }); }
 
+function settingValue(k){
+  const v = DATA[k];
+  if(k === "budgets") return v && Object.keys(v).length ? v : null;
+  return v ?? null;
+}
 function markSynced(){
   SYNCED = {
     tx: new Set(DATA.transactions.map(t => String(t.id))),
     fac: new Set(DATA.factures.map(f => String(f.id))),
-    target: JSON.stringify(DATA.target ?? null)
+    settings: Object.fromEntries(SETTING_KEYS.map(k => [k, JSON.stringify(settingValue(k))]))
   };
 }
 function writeCache(){
-  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ DATA, PROFILES, at: new Date().toISOString() })); }catch(e){}
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ DATA, PROFILES, FOYER, at: new Date().toISOString() })); }catch(e){}
 }
 
 async function fetchAll(){
-  const [tx, fac, st, pr] = await Promise.all([
+  const [tx, fac, st, pr, fo] = await Promise.all([
     sb.from("transactions").select("*").order("created_at"),
     sb.from("factures").select("*").order("created_at"),
-    sb.from("settings").select("*").eq("key", "target").maybeSingle(),
-    sb.from("profiles").select("id,email,display_name,role,created_at").order("created_at")
+    sb.from("settings").select("key,value"),
+    sb.from("profiles").select("id,email,display_name,role,created_at,foyer_id").order("created_at"),
+    sb.from("foyers").select("id,nom,devise,code_invitation").maybeSingle()
   ]);
-  const err = tx.error || fac.error || st.error || pr.error;
+  const err = tx.error || fac.error || st.error || pr.error || fo.error;
   if(err) throw err;
+  const S = Object.fromEntries((st.data || []).map(r => [r.key, r.value]));
   DATA = {
     transactions: tx.data.map(rowToTx),
     factures: fac.data.map(rowToFac),
-    target: st.data ? st.data.value : null
+    target: S.target ?? null,
+    budgets: S.budgets || {},
+    seuil: S.seuil ?? null
   };
+  FOYER = fo.data || null;
   PROFILES = pr.data;
   MEMBERS = PROFILES.filter(p => p.role !== "attente").map(p => p.display_name);
   markSynced();
@@ -1626,8 +1786,8 @@ async function pushChanges(){
   const delTx = [...SYNCED.tx].filter(id => !txNow.has(id));
   const addFac = [...facNow.keys()].filter(id => !SYNCED.fac.has(id)).map(id => facNow.get(id));
   const delFac = [...SYNCED.fac].filter(id => !facNow.has(id));
-  const targetNow = JSON.stringify(DATA.target ?? null);
-  if(!addTx.length && !delTx.length && !addFac.length && !delFac.length && targetNow === SYNCED.target) return;
+  const changedKeys = SETTING_KEYS.filter(k => JSON.stringify(settingValue(k)) !== SYNCED.settings[k]);
+  if(!addTx.length && !delTx.length && !addFac.length && !delFac.length && !changedKeys.length) return;
 
   try{
     if(OFFLINE_MODE || !navigator.onLine) throw new Error("offline");
@@ -1650,10 +1810,11 @@ async function pushChanges(){
       if(error) throw error;
       if((data || []).length < delFac.length) throw new Error("denied");
     }
-    if(targetNow !== SYNCED.target){
-      const res = DATA.target === null
-        ? await sb.from("settings").delete().eq("key", "target")
-        : await sb.from("settings").upsert({ key: "target", value: DATA.target });
+    for(const k of changedKeys){
+      const v = settingValue(k);
+      const res = v === null
+        ? await sb.from("settings").delete().eq("key", k)
+        : await sb.from("settings").upsert({ foyer_id: FOYER && FOYER.id, key: k, value: v }, { onConflict: "foyer_id,key" });
       if(res.error) throw res.error;
     }
     markSynced();
@@ -1682,8 +1843,9 @@ async function reloadFromServer(){
   ADMIN_UNLOCKED = isAdmin();
   populateMembers();
   refreshChrome();
-  const live = ["status", "database", "cash", "stats", "charts", "forecast", "consumed", "audit", "members"];
+  const live = ["status", "database", "cash", "stats", "charts", "forecast", "consumed", "audit", "members", "equilibre", "budgets", "facture"];
   if(currentPanel && live.includes(currentPanel)) renderPanel(currentPanel, true);
+  if(window.AloysNotify) AloysNotify.apresRechargement();
 }
 function scheduleReload(){
   clearTimeout(reloadTimer);
@@ -1693,7 +1855,7 @@ function loadCache(){
   try{
     const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
     if(c && c.DATA){
-      DATA = c.DATA; PROFILES = c.PROFILES || [];
+      DATA = Object.assign({ budgets: {}, seuil: null }, c.DATA); PROFILES = c.PROFILES || []; FOYER = c.FOYER || null;
       MEMBERS = PROFILES.filter(p => p.role !== "attente").map(p => p.display_name);
       markSynced();
     }
@@ -1724,6 +1886,7 @@ function setAuthMode(mode){
   const box = document.getElementById("authBox");
   box.dataset.mode = mode;
   document.getElementById("authNameField").style.display = mode === "signup" ? "" : "none";
+  document.getElementById("authFoyerField").style.display = mode === "signup" ? "" : "none";
   document.getElementById("authSubmit").textContent = mode === "signup" ? "Créer mon compte" : "Se connecter";
   document.getElementById("authSwitch").textContent = mode === "signup" ? "J'ai déjà un compte" : "Créer un compte";
   document.getElementById("authTitle").textContent = mode === "signup" ? "Créer un compte" : "Connexion";
@@ -1745,9 +1908,24 @@ async function submitAuth(){
   if(mode === "signup"){
     if(name.length < 3){ authMsg("Saisissez votre nom complet (ex. MINYURANO Aloys).", "err"); return; }
     if(password.length < 8){ authMsg("Mot de passe : 8 caractères minimum.", "err"); return; }
+    const meta = { display_name: name };
+    const foyerMode = (document.querySelector('input[name="foyerMode"]:checked') || {}).value || "join";
+    if(foyerMode === "create"){
+      const fn = document.getElementById("authFoyerNom").value.trim();
+      if(fn.length < 2){ authMsg("Donnez un nom à votre foyer (ex. Coloc Tanger centre).", "err"); return; }
+      meta.foyer_nom = fn;
+      meta.devise = document.getElementById("authDevise").value;
+    }else{
+      const code = document.getElementById("authCode").value.trim().toUpperCase();
+      if(!/^[0-9A-F]{8}$/.test(code)){ authMsg("Le code d'invitation comporte 8 caractères (chiffres et lettres A à F).", "err"); return; }
+      const { data: nomFoyer, error: e1 } = await sb.rpc("foyer_par_code", { code });
+      if(e1){ authMsg(traduireErreur(e1.message), "err"); return; }
+      if(!nomFoyer){ authMsg("Code d'invitation inconnu : vérifiez-le auprès de l'administrateur.", "err"); return; }
+      meta.foyer_code = code;
+    }
     const { data, error } = await sb.auth.signUp({
       email, password,
-      options: { data: { display_name: name }, emailRedirectTo: appUrl() }
+      options: { data: meta, emailRedirectTo: appUrl() }
     });
     if(error){ authMsg(traduireErreur(error.message), "err"); return; }
     if(!data.session){
@@ -1792,6 +1970,7 @@ async function onSignedIn(user){
     document.getElementById("authBox").style.display = "none";
     document.getElementById("pendingBox").style.display = "";
     document.getElementById("pendingName").textContent = CURRENT ? CURRENT.display_name : user.email;
+    document.getElementById("pendingFoyer").textContent = FOYER ? ` du foyer « ${FOYER.nom} »` : "";
     return;
   }
   hideLogin();
@@ -1804,7 +1983,7 @@ async function onSignedIn(user){
 }
 function renderUserBadge(){
   const el = document.getElementById("userBadge");
-  el.innerHTML = `${avatarHTML(CURRENT.display_name, "sm")} <b>${CURRENT.display_name}</b> · ${ROLE_LABELS[CURRENT.role] || CURRENT.role}`;
+  el.innerHTML = `${avatarHTML(CURRENT.display_name, "sm")} <b>${esc(CURRENT.display_name)}</b> · ${ROLE_LABELS[CURRENT.role] || CURRENT.role}${FOYER ? ` · <span title="Foyer">🏠 ${esc(FOYER.nom)}</span>` : ""}`;
   document.getElementById("headerMembers").textContent = MEMBERS.join(", ");
 }
 function populateMembers(){
@@ -1820,7 +1999,8 @@ function populateMembers(){
 function subscribeRealtime(){
   if(realtimeChannel) return;
   realtimeChannel = sb.channel("registre")
-    .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, ch => { if(window.AloysNotify) AloysNotify.surChangement(ch); scheduleReload(); })
+    .on("postgres_changes", { event: "*", schema: "public", table: "foyers" }, scheduleReload)
     .on("postgres_changes", { event: "*", schema: "public", table: "factures" }, scheduleReload)
     .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, scheduleReload)
     .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, scheduleReload)
@@ -1829,7 +2009,7 @@ function subscribeRealtime(){
 async function signOut(){
   if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
   await sb.auth.signOut();
-  CURRENT = null; DATA = { transactions: [], factures: [], target: null }; markSynced();
+  CURRENT = null; FOYER = null; DATA = { transactions: [], factures: [], target: null, budgets: {}, seuil: null }; markSynced();
   ADMIN_UNLOCKED = false;
   panelHost.innerHTML = "";
   refreshChrome();
@@ -1864,6 +2044,35 @@ function offerLocalImport(){
   };
 }
 
+/* ---------- reçus (Supabase Storage, dossier privé du foyer) ---------- */
+async function compresserImage(file){
+  if(!/^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+  const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  URL.revokeObjectURL(img.src);
+  const blob = await new Promise(res => c.toBlob(res, "image/jpeg", 0.82));
+  return blob && blob.size < file.size ? new File([blob], "recu.jpg", { type: "image/jpeg" }) : file;
+}
+async function uploadRecu(file, factureId){
+  if(!FOYER) throw new Error("foyer inconnu");
+  if(OFFLINE_MODE || !navigator.onLine) throw new Error("hors connexion");
+  const f = await compresserImage(file);
+  if(f.size > 5 * 1024 * 1024) throw new Error("fichier trop lourd (5 Mo maximum)");
+  const ext = f.type === "application/pdf" ? "pdf" : f.type === "image/png" ? "png" : f.type === "image/webp" ? "webp" : "jpg";
+  const path = `${FOYER.id}/${String(factureId).replace(/[^0-9]/g, "")}.${ext}`;
+  const { error } = await sb.storage.from("recus").upload(path, f, { contentType: f.type, upsert: false });
+  if(error) throw error;
+  return path;
+}
+async function openRecu(path){
+  const w = window.open("", "_blank");
+  const { data, error } = await sb.storage.from("recus").createSignedUrl(path, 120);
+  if(error || !data){ if(w) w.close(); showToast("Reçu inaccessible : " + (error ? error.message : "introuvable"), "err"); return; }
+  if(w) w.location = data.signedUrl; else location.href = data.signedUrl;
+}
+
 /* ---------- panneaux administrateur ---------- */
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
 
@@ -1882,8 +2091,21 @@ function panelMembers(root){
       <td><button class="btn m-save" style="padding:5px 12px;font-size:12px;">Enregistrer</button></td>
     </tr>`).join("");
   const pending = PROFILES.filter(p => p.role === "attente").length;
+  const devOpts = Object.keys(DEVISE_NOMS).map(d => `<option value="${d}" ${FOYER && FOYER.devise === d ? "selected" : ""}>${d} — ${DEVISE_NOMS[d]}</option>`).join("");
   root.innerHTML = `
-    <h2>👥 Membres et rôles</h2>
+    <h2>👥 Foyer, membres et rôles</h2>
+    ${FOYER ? `<div class="foyer-card">
+      <div class="row">
+        <div class="field"><label>Nom du foyer</label><input id="fNom" value="${esc(FOYER.nom)}" maxlength="80"></div>
+        <div class="field"><label>Devise</label><select id="fDev">${devOpts}</select></div>
+        <button class="btn" id="fSave">Enregistrer</button>
+      </div>
+      <div class="foyer-code">Code d'invitation : <b id="fCode">${esc(FOYER.code_invitation)}</b>
+        <button class="btn secondary" id="fCopy" style="padding:5px 12px;font-size:12px;">Copier l'invitation</button>
+        <button class="btn secondary" id="fRegen" style="padding:5px 12px;font-size:12px;">Nouveau code</button></div>
+      <small class="hint">Vos colocataires choisissent « Rejoindre un foyer » à l'inscription et saisissent ce code. Changez-le si quelqu'un d'extérieur l'a obtenu.</small>
+      <div class="msg" id="foyerMsg"></div>
+    </div>` : ""}
     <p class="role">Chaque personne crée son compte depuis l'écran de connexion. Elle apparaît ici <b>en attente</b> : choisissez son rôle pour lui donner accès.
     ${pending ? `<br><b style="color:var(--gold-light)">${pending} compte(s) en attente de validation.</b>` : ""}</p>
     <div class="tablewrap"><table class="dbtable">
@@ -1895,6 +2117,30 @@ function panelMembers(root){
       <b>Lecture seule</b> : consulter · <b>En attente</b> : aucun accès.
     </div>
     <div class="msg" id="membersMsg"></div>`;
+  const fm = root.querySelector("#foyerMsg");
+  const fSave = root.querySelector("#fSave");
+  if(fSave) fSave.onclick = async () => {
+    const nom = root.querySelector("#fNom").value.trim(), devise = root.querySelector("#fDev").value;
+    if(nom.length < 2){ fm.className = "msg err show"; fm.textContent = "Nom trop court."; return; }
+    const { data, error } = await sb.from("foyers").update({ nom, devise }).eq("id", FOYER.id).select("id");
+    if(error || !data || !data.length){ fm.className = "msg err show"; fm.textContent = "Modification refusée : " + (error ? error.message : "droits insuffisants"); return; }
+    fm.className = "msg ok show"; fm.textContent = "Foyer mis à jour.";
+    await reloadFromServer(); renderUserBadge();
+  };
+  const fCopy = root.querySelector("#fCopy");
+  if(fCopy) fCopy.onclick = () => {
+    const txt = `Rejoins notre foyer « ${FOYER.nom} » sur ALOYS MANAGEMENT : ${appUrl()}\nCrée ton compte, choisis « Rejoindre un foyer » et saisis le code ${FOYER.code_invitation}.`;
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
+      () => showToast("Invitation copiée : collez-la dans WhatsApp."), () => showToast("Copie impossible sur cet appareil.", "err"));
+  };
+  const fRegen = root.querySelector("#fRegen");
+  if(fRegen) fRegen.onclick = async () => {
+    if(!confirm("Créer un nouveau code ? L'ancien ne fonctionnera plus.")) return;
+    const { data, error } = await sb.rpc("regenerer_code_invitation");
+    if(error){ fm.className = "msg err show"; fm.textContent = error.message; return; }
+    FOYER.code_invitation = data; root.querySelector("#fCode").textContent = data;
+    fm.className = "msg ok show"; fm.textContent = "Nouveau code créé.";
+  };
   root.querySelectorAll(".m-save").forEach(btn => {
     btn.onclick = async () => {
       const tr = btn.closest("tr");
@@ -1926,13 +2172,17 @@ async function panelAudit(root){
   if(error){ body.innerHTML = `<div class="msg err show">${esc(error.message)}</div>`; return; }
   if(!data.length){ body.innerHTML = `<div class="explain">Aucune opération enregistrée pour le moment.</div>`; return; }
   const ACT = { INSERT: "Ajout", DELETE: "Suppression", UPDATE: "Modification" };
-  const TBL = { transactions: "Transaction", factures: "Facture", settings: "Objectif", profiles: "Membre" };
+  const TBL = { transactions: "Transaction", factures: "Facture", settings: "Paramètre", profiles: "Membre" };
   const detail = r => {
     const d = r.details || {};
     const x = d.apres || d;
-    if(r.table_name === "transactions") return `${x.type === "deposit" ? "Dépôt" : "Dépense"} · ${esc(x.person)} · ${fmt(Number(x.amount))} MAD`;
-    if(r.table_name === "factures") return `${esc(x.nom)} · ${fmt(Number(x.montant))} MAD`;
-    if(r.table_name === "settings") return x.value && x.value.amount ? `Objectif : ${fmt(Number(x.value.amount))} MAD` : "Objectif supprimé";
+    if(r.table_name === "transactions") return `${x.type === "deposit" ? "Dépôt" : "Dépense"} · ${esc(x.person)} · ${fmt(Number(x.amount))} ${DEV()}`;
+    if(r.table_name === "factures") return `${esc(x.nom)} · ${fmt(Number(x.montant))} ${DEV()}`;
+    if(r.table_name === "settings"){
+      if(x.key === "budgets") return "Budgets mensuels mis à jour";
+      if(x.key === "seuil") return x.value ? `Seuil d'alerte : ${fmt(Number(x.value.montant))} ${DEV()}` : "Seuil d'alerte supprimé";
+      return x.value && x.value.amount ? `Objectif : ${fmt(Number(x.value.amount))} ${DEV()}` : "Objectif supprimé";
+    }
     if(r.table_name === "profiles") return `${esc(x.display_name)} → ${ROLE_LABELS[x.role] || esc(x.role)}`;
     return "";
   };
@@ -1952,6 +2202,18 @@ async function bootCloud(){
   document.getElementById("authPassword").addEventListener("keydown", e => { if(e.key === "Enter") submitAuth(); });
   document.getElementById("authSwitch").onclick = () => setAuthMode(document.getElementById("authBox").dataset.mode === "signup" ? "login" : "signup");
   document.getElementById("authForgot").onclick = forgotPassword;
+  document.querySelectorAll('input[name="foyerMode"]').forEach(r => r.onchange = () => {
+    const create = document.querySelector('input[name="foyerMode"]:checked').value === "create";
+    document.getElementById("foyerCreate").style.display = create ? "" : "none";
+    document.getElementById("foyerJoin").style.display = create ? "none" : "";
+    authMsg("", "");
+  });
+  document.getElementById("authCode").addEventListener("input", async e => {
+    const code = e.target.value.trim().toUpperCase(), hint = document.getElementById("authCodeHint");
+    if(!/^[0-9A-F]{8}$/.test(code)){ hint.textContent = "Demandez le code à l'administrateur de votre foyer."; return; }
+    const { data } = await sb.rpc("foyer_par_code", { code });
+    hint.textContent = data ? `✅ Foyer trouvé : « ${data} »` : "❌ Code inconnu.";
+  });
   document.getElementById("logoutBtn").onclick = signOut;
   document.getElementById("pendingLogout").onclick = signOut;
   window.addEventListener("online", () => { if(CURRENT) scheduleReload(); });

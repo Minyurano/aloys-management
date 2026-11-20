@@ -1,10 +1,12 @@
 /* Service worker : application installable et consultable hors connexion.
    Les données du registre ne passent jamais par ce cache (requêtes Supabase exclues). */
-const CACHE = "aloys-mgmt-v3";
+const CACHE = "aloys-mgmt-v4";
 const SHELL = [
   "./",
   "./index.html",
   "./analytics.js",
+  "./categories.js",
+  "./features.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
