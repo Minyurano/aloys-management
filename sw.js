@@ -1,13 +1,15 @@
 /* Service worker : application installable et consultable hors connexion.
    Les données du registre ne passent jamais par ce cache (requêtes Supabase exclues). */
-const CACHE = "aloys-mgmt-v2";
+const CACHE = "aloys-mgmt-v3";
 const SHELL = [
   "./",
   "./index.html",
+  "./analytics.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js",
+  "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
 ];
 
 self.addEventListener("install", (event) => {

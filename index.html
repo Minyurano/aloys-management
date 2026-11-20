@@ -12,6 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="analytics.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -231,6 +233,30 @@
     align-items:center;
     gap:6px;
   }
+  /* TABLEAU DE BORD ANALYTIQUE */
+  .an-filters{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px;}
+  .an-chip{background:transparent;color:var(--muted);border:1px solid var(--hair);border-radius:999px;padding:6px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;}
+  .an-chip:hover{color:var(--text);border-color:var(--gold);}
+  .an-chip.on{background:var(--gold);color:#241c05;border-color:var(--gold);font-weight:600;}
+  .an-chip:focus-visible{outline:2px solid var(--gold-light);outline-offset:2px;}
+  .an-count{margin-left:auto;color:var(--muted);font-size:12px;}
+  .an-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  .an-h{font-family:'Fraunces',serif;font-size:16px;margin:28px 0 10px;color:var(--text);}
+  .an-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px;}
+  .an-card{background:var(--panel-light);border:1px solid var(--hair);border-radius:10px;padding:14px 16px;min-width:0;}
+  .an-card h3{font-size:14px;margin:0;color:var(--text);font-weight:600;}
+  .an-sub{color:var(--muted);font-size:12px;margin:3px 0 0;}
+  .an-canvas{position:relative;height:260px;margin-top:12px;}
+  .an-wide .an-canvas{height:320px;}
+  .an-canvas canvas{background:transparent;border-radius:0;}
+  .an-read{color:var(--muted);font-size:12.5px;line-height:1.6;margin-top:10px;}
+  .an-read b{color:var(--gold-light);}
+  .an-empty{color:var(--muted);font-size:13px;line-height:1.6;padding:28px 12px;text-align:center;border:1px dashed var(--hair);border-radius:8px;margin-top:12px;}
+  .an-empty b{color:var(--gold-light);}
+  .an-models tr.best td{color:var(--gold-light);font-weight:600;}
+  .an-table summary{cursor:pointer;color:var(--gold-light);margin-top:6px;}
+  .an-table table{margin-top:6px;}
+  .an-method{color:var(--muted);font-size:11.5px;line-height:1.6;margin-top:22px;border-top:1px dashed var(--hair);padding-top:12px;}
 </style>
 </head>
 <body>
@@ -327,10 +353,10 @@
       <div class="sub">Moyenne, médiane, dispersion, totaux par membre</div>
     </div>
     <div class="card" data-panel="charts" data-category="rapports">
-      <div class="num">08 · GRAPHIQUES</div>
+      <div class="num">08 · ANALYSE</div>
       <span class="icon">📊</span>
-      <div class="label">Graphiques de consommation</div>
-      <div class="sub">Histogramme et boîte à moustaches, expliqués</div>
+      <div class="label">Analyse &amp; modèles</div>
+      <div class="sub">Camemberts, histogrammes, prévision et comparaison de modèles</div>
     </div>
     <div class="card" data-panel="download" data-category="export">
       <div class="num">09 · EXPORT</div>
@@ -421,7 +447,8 @@ const STORE_KEY = "aloys_mgmt_v1";
 let MEMBERS = []; // chargé depuis la base de données (profils validés)
 
 // Couleurs des avatars par membre (index)
-const AVATAR_COLORS = ["#E74C3C", "#3498DB", "#2ECC71", "#F1C40F"];
+// Palette validée (contraste et daltonisme) : un membre garde la même couleur partout, avatars et graphiques
+const AVATAR_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
 const AVATAR_INITIALS = ["MA", "NB", "IA", "IW"]; // Initiales
 
 function getAvatarData(memberName) {
@@ -559,13 +586,14 @@ function renderPanel(name, silent){
     status: panelStatus,
     forecast: panelForecast,
     stats: panelStats,
-    charts: panelCharts,
+    charts: (r)=> window.panelAnalytics ? panelAnalytics(r) : panelCharts(r),
     download: panelDownload,
     target: panelTarget,
     facture: panelFacture,
     members: panelMembers,
     audit: panelAudit
   };
+  if(window.destroyAnalyticsCharts) destroyAnalyticsCharts();
   panelHost.innerHTML = '';
   const div = document.createElement('div');
   div.className='panel';
@@ -616,13 +644,7 @@ function speakPanel(name){
       break;
     }
     case 'charts': {
-      const consumption = DATA.transactions.filter(t=>t.type==='consumption').map(t=>t.amount);
-      if(consumption.length < 2) msg = `Panneau Graphiques ouvert. Il faut au moins deux dépenses.`;
-      else {
-        const s = computeStats(consumption);
-        const q1 = quantile(s.sorted,0.25), q3 = quantile(s.sorted,0.75);
-        msg = `Panneau Graphiques ouvert. Médiane ${fmt(s.median)}, intervalle interquartile de ${fmt(q1)} à ${fmt(q3)}.`;
-      }
+      msg = `Panneau Analyse et modèles ouvert. ${DATA.transactions.length} opérations analysées : répartition par membre, distribution des montants, prévision du solde et comparaison des membres.`;
       break;
     }
     case 'target':
@@ -993,6 +1015,9 @@ function panelStats(root){
       <div class="statbox"><div class="k">Écart‑type</div><div class="v">${fmt(s.std)}</div></div>
       <div class="statbox"><div class="k">Minimum</div><div class="v">${fmt(s.min)}</div></div>
       <div class="statbox"><div class="k">Maximum</div><div class="v">${fmt(s.max)}</div></div>
+      <div class="statbox"><div class="k">1er quartile (Q1)</div><div class="v">${fmt(quantile(s.sorted,0.25))}</div></div>
+      <div class="statbox"><div class="k">3e quartile (Q3)</div><div class="v">${fmt(quantile(s.sorted,0.75))}</div></div>
+      <div class="statbox"><div class="k">Coef. de variation</div><div class="v">${s.mean ? (s.std/s.mean*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %' : '—'}</div></div>
     </div>
     <h3 style="font-family:'Fraunces',serif;font-size:15px;margin:20px 0 8px;">Totaux par membre</h3>
     <div class="tablewrap">
@@ -1010,6 +1035,8 @@ function panelStats(root){
     <div class="explain">
       Sur <b>${s.n}</b> entrées, dépôts : <b>${deposits.length}</b>, dépenses : <b>${consumption.length}</b>.
       La taille moyenne est de <b>${fmt(s.mean)} MAD</b> avec un écart‑type de <b>${fmt(s.std)}</b>.
+      Le coefficient de variation (écart‑type / moyenne) mesure la dispersion relative : sous 30 %, les montants sont homogènes.
+      Pour les graphiques et les modèles de prévision, ouvrez la carte <b>08 · Analyse &amp; modèles</b>.
     </div>
   `;
 }

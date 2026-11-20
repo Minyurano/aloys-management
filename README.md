@@ -52,6 +52,21 @@ Ces règles sont appliquées **par le serveur** (PostgreSQL Row Level Security) 
    └── Realtime ........ diffusion des changements à tous les membres connectés
 ```
 
+## Analyse de données et modèles
+
+La carte **08 · Analyse & modèles** est un tableau de bord interactif (Chart.js), filtrable par période (tout, 30 jours, 90 jours, 12 mois) :
+
+| Bloc | Contenu | Méthode |
+|---|---|---|
+| Répartition | Camemberts des dépôts et des dépenses par membre | Parts relatives, couleurs fixes par membre (palette validée contraste et daltonisme) |
+| Distribution | Histogramme dépôts / dépenses, nuage de points par membre avec médiane | Classes de Freedman-Diaconis, valeurs extrêmes regroupées au-delà de Q3 + 3·IQR, coefficient d'asymétrie |
+| Temporalité | Flux mensuels, activité par jour de la semaine | Agrégations, tableau des données consultable |
+| Prévision | Solde à 30 jours avec intervalle de prévision à 95 % | Naïf, dérive, régression linéaire (MCO), lissage de Holt (α, β optimisés), départagés par validation temporelle hold-out (MAE, RMSE) |
+| Comparaison | Part de chaque membre, écart à la part égale | Indice de Gini, test de Kruskal-Wallis (H, p, η²) |
+| Anomalies | Opérations au montant inhabituel | z-score robuste d'Iglewicz-Hoaglin (médiane, MAD, seuil 3,5) |
+
+Les calculs sont faits dans le navigateur ([`analytics.js`](analytics.js)) ; les résultats statistiques ont été vérifiés contre SciPy.
+
 ## Installation (nouveau déploiement)
 
 1. **Supabase :** créer un projet gratuit, puis exécuter [`supabase_setup.sql`](supabase_setup.sql) dans **SQL Editor**. Remplacez auparavant `__ADMIN_EMAIL__` par l'e-mail de l'administrateur. Le script peut être relancé sans risque.
@@ -64,6 +79,7 @@ Ces règles sont appliquées **par le serveur** (PostgreSQL Row Level Security) 
 ```
 .
 ├── index.html            # Application (HTML + CSS + JavaScript)
+├── analytics.js          # Tableau de bord analytique et modèles statistiques
 ├── supabase_setup.sql    # Base de données : tables, sécurité RLS, audit, temps réel
 ├── sw.js                 # Service worker (installation, hors connexion)
 ├── manifest.json         # Manifeste PWA
