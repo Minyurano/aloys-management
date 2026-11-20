@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GESTION ALOYS — Registre du foyer</title>
+<meta name="theme-color" content="#0F1B2D">
+<meta name="description" content="Registre financier partagé du foyer : dépôts, dépenses, factures, statistiques.">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2/dist/umd/supabase.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -176,6 +184,30 @@
   #exitOverlay h2{font-family:'Fraunces',serif;font-size:26px;color:var(--gold-light);}
   #exitOverlay p{color:var(--muted);font-size:14px;line-height:1.7;}
 
+  /* CONNEXION / SESSION */
+  #authOverlay{position:fixed;inset:0;background:radial-gradient(circle at 20% 0%, rgba(201,162,39,0.12), transparent 45%), rgba(10,17,30,0.98);
+    display:none;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+  .authcard{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--hair);border-radius:14px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,0.45);}
+  .authcard .seal{margin:0 auto 14px;}
+  .authcard h2{font-family:'Fraunces',serif;text-align:center;margin:0 0 4px;font-size:24px;}
+  .authcard .sub{text-align:center;color:var(--muted);font-size:13px;margin:0 0 20px;}
+  .authcard .field{margin-bottom:12px;}
+  .authcard input{width:100%;}
+  .authcard .btn{width:100%;margin-top:6px;}
+  .authlinks{display:flex;justify-content:space-between;margin-top:14px;font-size:12.5px;}
+  .authlinks a{color:var(--gold-light);cursor:pointer;text-decoration:none;}
+  .authlinks a:hover{text-decoration:underline;}
+  .userbadge{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);}
+  .userbadge b{color:var(--text);}
+  #offlineBanner,#importBanner{display:none;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;}
+  #offlineBanner{background:rgba(193,84,60,0.15);border:1px solid rgba(193,84,60,0.45);color:#f0a08e;}
+  #importBanner{background:rgba(201,162,39,0.12);border:1px solid var(--hair);color:var(--gold-light);align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;transition:all .25s;
+    background:var(--panel-light);border:1px solid var(--hair);color:var(--text);padding:12px 18px;border-radius:8px;z-index:1100;max-width:90vw;font-size:13.5px;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{border-color:rgba(193,84,60,0.6);color:#f0a08e;}
+  select:disabled{opacity:0.75;cursor:not-allowed;}
+
   /* AVATARS */
   .avatar {
     display:inline-block;
@@ -209,22 +241,22 @@
     <div class="seal">ALOYS<br>MGMT</div>
     <div>
       <h1>GESTION ALOYS</h1>
-      <p>Registre partagé du foyer · MINYURANO Aloys, NIBITANGA Billy, IRAKOZE Alain, IRADUKUNDA Wellas</p>
+      <p>Registre partagé du foyer · <span id="headerMembers"></span></p>
     </div>
     <div class="datebadge" id="clock"></div>
   </header>
 
   <div class="memberbar">
     <label>Agir en tant que</label>
-    <select id="activeMember">
-      <option>MINYURANO Aloys</option>
-      <option>NIBITANGA Billy</option>
-      <option>IRAKOZE Alain</option>
-      <option>IRADUKUNDA Wellas</option>
-    </select>
+    <select id="activeMember"></select>
     <div class="balance-peek" id="entryCount">0 entrées enregistrées</div>
     <button class="btn secondary" id="voiceBtn" style="font-size:11.5px;padding:6px 12px;"></button>
+    <div class="userbadge" id="userBadge"></div>
+    <button class="btn secondary" id="logoutBtn" style="font-size:11.5px;padding:6px 12px;">Se déconnecter</button>
   </div>
+
+  <div id="offlineBanner">📴 Hors connexion — affichage des dernières données enregistrées sur cet appareil. Les modifications sont désactivées jusqu'au retour du réseau.</div>
+  <div id="importBanner"><span></span><button class="btn" style="padding:6px 14px;font-size:12px;">Importer dans le registre en ligne</button></div>
 
   <div class="grid catgrid" id="categoryGrid">
     <div class="card catcard" data-category="donnees">
@@ -306,6 +338,18 @@
       <div class="label">Télécharger le rapport complet</div>
       <div class="sub">CSV + JSON de tout ce qui précède</div>
     </div>
+    <div class="card" data-panel="members" data-category="administration">
+      <div class="num">ADMIN</div>
+      <span class="icon">👥</span>
+      <div class="label">Membres et rôles</div>
+      <div class="sub">Valider les comptes, attribuer les rôles</div>
+    </div>
+    <div class="card" data-panel="audit" data-category="administration">
+      <div class="num">ADMIN</div>
+      <span class="icon">📜</span>
+      <div class="label">Journal d'audit</div>
+      <div class="sub">Qui a fait quoi, et quand</div>
+    </div>
     <div class="card" data-panel="target" data-category="administration">
       <div class="num">10 · ADMIN UNIQUEMENT</div>
       <span class="icon">🎯</span>
@@ -337,46 +381,44 @@
   </div>
 </div>
 
+<div id="authOverlay">
+  <div class="authcard" id="authBox" data-mode="login">
+    <div class="seal">ALOYS<br>MGMT</div>
+    <h2 id="authTitle">Connexion</h2>
+    <p class="sub">Registre partagé du foyer</p>
+    <div class="field" id="authNameField" style="display:none">
+      <label>Nom complet</label>
+      <input type="text" id="authName" placeholder="Ex. MINYURANO Aloys" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>E-mail</label>
+      <input type="email" id="authEmail" placeholder="vous@exemple.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Mot de passe</label>
+      <input type="password" id="authPassword" placeholder="8 caractères minimum" autocomplete="current-password">
+    </div>
+    <button class="btn" id="authSubmit">Se connecter</button>
+    <div class="msg" id="authMsg"></div>
+    <div class="authlinks"><a id="authSwitch">Créer un compte</a><a id="authForgot">Mot de passe oublié ?</a></div>
+  </div>
+  <div class="authcard" id="pendingBox" style="display:none;text-align:center">
+    <div style="font-size:40px">⏳</div>
+    <h2>Compte en attente</h2>
+    <p class="sub">Bonjour <b id="pendingName"></b>, votre compte a bien été créé. L'administrateur doit maintenant le valider avant que vous puissiez accéder au registre.</p>
+    <button class="btn secondary" id="pendingLogout">Se déconnecter</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
 <script>
 /* =========================================================
    GESTION ALOYS — registre du foyer en un seul fichier
-   Stockage : localStorage clé "aloys_mgmt_v1"
+   Stockage : base de données en ligne Supabase (voir supabase_setup.sql)
    ========================================================= */
 
 const STORE_KEY = "aloys_mgmt_v1";
-// Empreinte SHA-256 du code administrateur (le code lui-meme n'apparait plus dans le source)
-const ADMIN_HASH = "f74a6a71dbaa2a461c32b91759677b8f8e21a80bbc0bc8084560082716fe5d5c";
-/* SHA-256 synchrone (UTF-8) — sert à vérifier le code administrateur sans l'écrire en clair */
-function sha256(str){
-  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
-  const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
-  const bytes=Array.from(new TextEncoder().encode(str));
-  const bitLen=bytes.length*8;
-  bytes.push(0x80);
-  while(bytes.length%64!==56) bytes.push(0);
-  for(let i=7;i>=0;i--) bytes.push(Math.floor(bitLen/Math.pow(2,8*i))&0xff);
-  const rotr=(x,n)=>(x>>>n)|(x<<(32-n));
-  const W=new Array(64);
-  for(let off=0;off<bytes.length;off+=64){
-    for(let i=0;i<16;i++) W[i]=(bytes[off+4*i]<<24)|(bytes[off+4*i+1]<<16)|(bytes[off+4*i+2]<<8)|bytes[off+4*i+3];
-    for(let i=16;i<64;i++){
-      const s0=rotr(W[i-15],7)^rotr(W[i-15],18)^(W[i-15]>>>3);
-      const s1=rotr(W[i-2],17)^rotr(W[i-2],19)^(W[i-2]>>>10);
-      W[i]=(W[i-16]+s0+W[i-7]+s1)|0;
-    }
-    let [a,b,c,d,e,f,g,h]=H;
-    for(let i=0;i<64;i++){
-      const S1=rotr(e,6)^rotr(e,11)^rotr(e,25);
-      const t1=(h+S1+((e&f)^(~e&g))+K[i]+W[i])|0;
-      const S0=rotr(a,2)^rotr(a,13)^rotr(a,22);
-      const t2=(S0+((a&b)^(a&c)^(b&c)))|0;
-      h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;
-    }
-    H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
-  }
-  return H.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
-}
-const MEMBERS = ["MINYURANO Aloys","NIBITANGA Billy","IRAKOZE Alain","IRADUKUNDA Wellas"];
+let MEMBERS = []; // chargé depuis la base de données (profils validés)
 
 // Couleurs des avatars par membre (index)
 const AVATAR_COLORS = ["#E74C3C", "#3498DB", "#2ECC71", "#F1C40F"];
@@ -384,8 +426,9 @@ const AVATAR_INITIALS = ["MA", "NB", "IA", "IW"]; // Initiales
 
 function getAvatarData(memberName) {
   const idx = MEMBERS.indexOf(memberName);
-  if (idx === -1) return { color: "#888", initial: "?" };
-  return { color: AVATAR_COLORS[idx] || "#888", initial: AVATAR_INITIALS[idx] || memberName.slice(0,2) };
+  if (idx === -1) return { color: "#888", initial: String(memberName||"?").slice(0,2).toUpperCase() };
+  const initials = String(memberName).split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+  return { color: AVATAR_COLORS[idx % AVATAR_COLORS.length], initial: initials || "?" };
 }
 
 function avatarHTML(name, size="sm") {
@@ -394,23 +437,7 @@ function avatarHTML(name, size="sm") {
   return `<span class="${cls}" style="background:${data.color};">${data.initial}</span>`;
 }
 
-function loadData(){
-  try{
-    const raw = localStorage.getItem(STORE_KEY);
-    if(!raw) return {transactions:[], factures:[]};
-    const parsed = JSON.parse(raw);
-    if(!parsed.transactions) parsed.transactions = [];
-    if(!parsed.factures) parsed.factures = [];
-    if(parsed.target === undefined) parsed.target = null;
-    return parsed;
-  }catch(e){
-    return {transactions:[], factures:[], target:null};
-  }
-}
-function saveData(data){
-  localStorage.setItem(STORE_KEY, JSON.stringify(data));
-}
-let DATA = loadData();
+let DATA = { transactions: [], factures: [], target: null };
 let ADMIN_UNLOCKED = false;
 
 function fmt(n){
@@ -523,7 +550,7 @@ function activeMember(){
   return document.getElementById('activeMember').value;
 }
 
-function renderPanel(name){
+function renderPanel(name, silent){
   const renderers = {
     deposit: panelDeposit,
     database: panelDatabase,
@@ -535,14 +562,16 @@ function renderPanel(name){
     charts: panelCharts,
     download: panelDownload,
     target: panelTarget,
-    facture: panelFacture
+    facture: panelFacture,
+    members: panelMembers,
+    audit: panelAudit
   };
   panelHost.innerHTML = '';
   const div = document.createElement('div');
   div.className='panel';
   panelHost.appendChild(div);
   renderers[name](div);
-  setTimeout(()=> speakPanel(name), 150);
+  if(!silent) setTimeout(()=> speakPanel(name), 150);
 }
 
 function speakPanel(name){
@@ -694,11 +723,11 @@ function panelDatabase(root){
       root.querySelector('#dbAdminSubmit').onclick = ()=>{
         const val = root.querySelector('#dbAdminCode').value;
         const msg = root.querySelector('#dbAdminMsg');
-        if(sha256(val) === ADMIN_HASH){
+        if(isAdmin()){
           ADMIN_UNLOCKED = true;
           panelDatabase(root);
         }else{
-          msg.className='msg err show'; msg.textContent='Code incorrect.';
+          msg.className='msg err show'; msg.textContent="Accès réservé à l'administrateur.";
         }
       };
     };
@@ -739,12 +768,12 @@ function panelCash(root){
     root.querySelector('#adminSubmit').onclick = ()=>{
       const val = root.querySelector('#adminCode').value;
       const msg = root.querySelector('#adminMsg');
-      if(sha256(val) === ADMIN_HASH){
+      if(isAdmin()){
         ADMIN_UNLOCKED = true;
         panelCash(root);
         speakText(`Déverrouillé. Solde : ${fmt(balance())} dirhams.`);
       }else{
-        msg.className='msg err show'; msg.textContent='Code incorrect.';
+        msg.className='msg err show'; msg.textContent="Accès réservé à l'administrateur.";
       }
     };
     return;
@@ -802,11 +831,11 @@ function panelConsumed(root){
       root.querySelector('#consAdminSubmit').onclick = ()=>{
         const val = root.querySelector('#consAdminCode').value;
         const msg = root.querySelector('#consAdminMsg');
-        if(sha256(val) === ADMIN_HASH){
+        if(isAdmin()){
           ADMIN_UNLOCKED = true;
           panelConsumed(root);
         }else{
-          msg.className='msg err show'; msg.textContent='Code incorrect.';
+          msg.className='msg err show'; msg.textContent="Accès réservé à l'administrateur.";
         }
       };
     };
@@ -1118,6 +1147,7 @@ function panelDownload(root){
     flashMsg(root,'Sauvegarde complète téléchargée.');
   };
   root.querySelector('#restoreFile').onchange = (ev)=>{
+    if(!isAdmin()){ flashMsg(root,"La restauration est réservée à l'administrateur."); ev.target.value=''; return; }
     const file = ev.target.files[0];
     if(!file) return;
     const reader = new FileReader();
@@ -1197,12 +1227,12 @@ function panelTarget(root){
     root.querySelector('#targetAdminSubmit').onclick = ()=>{
       const val = root.querySelector('#targetAdminCode').value;
       const msg = root.querySelector('#targetAdminMsg');
-      if(sha256(val) === ADMIN_HASH){
+      if(isAdmin()){
         ADMIN_UNLOCKED = true;
         panelTarget(root);
         speakText(DATA.target ? `Déverrouillé. Il reste ${fmt(remainingTarget())} dirhams.` : `Déverrouillé. Aucun objectif.`);
       }else{
-        msg.className='msg err show'; msg.textContent='Code incorrect.';
+        msg.className='msg err show'; msg.textContent="Accès réservé à l'administrateur.";
       }
     };
     return;
@@ -1331,11 +1361,11 @@ function panelFacture(root) {
       root.querySelector('#factureAdminSubmit').onclick = ()=>{
         const val = root.querySelector('#factureAdminCode').value;
         const msg = root.querySelector('#factureAdminMsg');
-        if(sha256(val) === ADMIN_HASH){
+        if(isAdmin()){
           ADMIN_UNLOCKED = true;
           panelFacture(root);
         }else{
-          msg.className='msg err show'; msg.textContent='Code incorrect.';
+          msg.className='msg err show'; msg.textContent="Accès réservé à l'administrateur.";
         }
       };
     };
@@ -1496,6 +1526,434 @@ document.getElementById('voiceBtn').onclick = ()=>{
 /* initialisation */
 refreshChrome();
 renderVoiceStatus();
+</script>
+<script>
+/* =========================================================
+   SYNCHRONISATION EN LIGNE (Supabase)
+   - comptes utilisateurs, rôles, registre partagé en temps réel
+   - les règles de sécurité sont appliquées par le serveur (RLS)
+   ========================================================= */
+const SUPABASE_URL = "https://bvbxztrifoahygejowhb.supabase.co";
+const SUPABASE_KEY = "sb_publishable_vYy564LypO4gasy3poAuYg_Fgjz2oAl";
+const CACHE_KEY = "aloys_mgmt_cache_v2";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let CURRENT = null;          // profil connecté {id,email,display_name,role}
+let PROFILES = [];           // tous les profils visibles
+let SYNCED = { tx: new Set(), fac: new Set(), target: "null" };
+let OFFLINE_MODE = false;
+let syncChain = Promise.resolve();
+let realtimeChannel = null;
+let reloadTimer = null;
+
+const ROLE_LABELS = { admin: "Administrateur", membre: "Membre", lecture: "Lecture seule", attente: "En attente" };
+
+function rowToTx(r){ return Object.assign({}, r.payload, { id: r.id, type: r.type, person: r.person, amount: Number(r.amount) }); }
+function rowToFac(r){ return Object.assign({}, r.payload, { id: r.id, nom: r.nom, montant: Number(r.montant) }); }
+
+function markSynced(){
+  SYNCED = {
+    tx: new Set(DATA.transactions.map(t => String(t.id))),
+    fac: new Set(DATA.factures.map(f => String(f.id))),
+    target: JSON.stringify(DATA.target ?? null)
+  };
+}
+function writeCache(){
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ DATA, PROFILES, at: new Date().toISOString() })); }catch(e){}
+}
+
+async function fetchAll(){
+  const [tx, fac, st, pr] = await Promise.all([
+    sb.from("transactions").select("*").order("created_at"),
+    sb.from("factures").select("*").order("created_at"),
+    sb.from("settings").select("*").eq("key", "target").maybeSingle(),
+    sb.from("profiles").select("id,email,display_name,role,created_at").order("created_at")
+  ]);
+  const err = tx.error || fac.error || st.error || pr.error;
+  if(err) throw err;
+  DATA = {
+    transactions: tx.data.map(rowToTx),
+    factures: fac.data.map(rowToFac),
+    target: st.data ? st.data.value : null
+  };
+  PROFILES = pr.data;
+  MEMBERS = PROFILES.filter(p => p.role !== "attente").map(p => p.display_name);
+  markSynced();
+  writeCache();
+}
+
+function canWrite(){ return CURRENT && (CURRENT.role === "admin" || CURRENT.role === "membre") && !OFFLINE_MODE; }
+function isAdmin(){ return !!CURRENT && CURRENT.role === "admin"; }
+
+/* Remplace l'ancien enregistrement local : envoie au serveur la différence
+   entre l'état affiché (DATA) et le dernier état synchronisé. */
+function saveData(){
+  syncChain = syncChain.then(pushChanges).catch(() => {});
+  return syncChain;
+}
+
+async function pushChanges(){
+  const txNow = new Map(DATA.transactions.map(t => [String(t.id), t]));
+  const facNow = new Map(DATA.factures.map(f => [String(f.id), f]));
+  const addTx = [...txNow.keys()].filter(id => !SYNCED.tx.has(id)).map(id => txNow.get(id));
+  const delTx = [...SYNCED.tx].filter(id => !txNow.has(id));
+  const addFac = [...facNow.keys()].filter(id => !SYNCED.fac.has(id)).map(id => facNow.get(id));
+  const delFac = [...SYNCED.fac].filter(id => !facNow.has(id));
+  const targetNow = JSON.stringify(DATA.target ?? null);
+  if(!addTx.length && !delTx.length && !addFac.length && !delFac.length && targetNow === SYNCED.target) return;
+
+  try{
+    if(OFFLINE_MODE || !navigator.onLine) throw new Error("offline");
+    if(!canWrite()) throw new Error("readonly");
+    if(addFac.length){
+      const { error } = await sb.from("factures").insert(addFac.map(f => ({ id: String(f.id), nom: f.nom, montant: f.montant, payload: f })));
+      if(error) throw error;
+    }
+    if(addTx.length){
+      const { error } = await sb.from("transactions").insert(addTx.map(t => ({ id: String(t.id), type: t.type, person: t.person, amount: t.amount, payload: t })));
+      if(error) throw error;
+    }
+    if(delTx.length){
+      const { data, error } = await sb.from("transactions").delete().in("id", delTx).select("id");
+      if(error) throw error;
+      if((data || []).length < delTx.length) throw new Error("denied");
+    }
+    if(delFac.length){
+      const { data, error } = await sb.from("factures").delete().in("id", delFac).select("id");
+      if(error) throw error;
+      if((data || []).length < delFac.length) throw new Error("denied");
+    }
+    if(targetNow !== SYNCED.target){
+      const res = DATA.target === null
+        ? await sb.from("settings").delete().eq("key", "target")
+        : await sb.from("settings").upsert({ key: "target", value: DATA.target });
+      if(res.error) throw res.error;
+    }
+    markSynced();
+    writeCache();
+  }catch(e){
+    const reason =
+      e.message === "offline"  ? "Hors connexion : la modification n'a pas été enregistrée." :
+      e.message === "readonly" ? "Votre compte est en lecture seule : modification impossible." :
+      (e.message === "denied" || /row-level security|permission/i.test(e.message || ""))
+                               ? "Action réservée : le serveur a refusé cette modification." :
+                                 "Erreur d'enregistrement : " + (e.message || e);
+    showToast(reason, "err");
+    await reloadFromServer();
+  }
+}
+
+async function reloadFromServer(){
+  try{
+    await fetchAll();
+    OFFLINE_MODE = false;
+    setOfflineBanner(false);
+  }catch(e){
+    loadCache();
+  }
+  CURRENT = PROFILES.find(p => CURRENT && p.id === CURRENT.id) || CURRENT;
+  ADMIN_UNLOCKED = isAdmin();
+  populateMembers();
+  refreshChrome();
+  const live = ["status", "database", "cash", "stats", "charts", "forecast", "consumed", "audit", "members"];
+  if(currentPanel && live.includes(currentPanel)) renderPanel(currentPanel, true);
+}
+function scheduleReload(){
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => { syncChain = syncChain.then(reloadFromServer); }, 400);
+}
+function loadCache(){
+  try{
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+    if(c && c.DATA){
+      DATA = c.DATA; PROFILES = c.PROFILES || [];
+      MEMBERS = PROFILES.filter(p => p.role !== "attente").map(p => p.display_name);
+      markSynced();
+    }
+  }catch(e){}
+  OFFLINE_MODE = true;
+  setOfflineBanner(true);
+}
+
+/* ---------- interface : connexion ---------- */
+function showToast(text, kind = "ok"){
+  const t = document.getElementById("toast");
+  t.textContent = text;
+  t.className = "toast show " + kind;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => { t.className = "toast"; }, 5000);
+}
+function setOfflineBanner(on){
+  document.getElementById("offlineBanner").style.display = on ? "block" : "none";
+}
+function showLogin(mode = "login"){
+  document.getElementById("authOverlay").style.display = "flex";
+  document.getElementById("pendingBox").style.display = "none";
+  document.getElementById("authBox").style.display = "";
+  setAuthMode(mode);
+}
+function hideLogin(){ document.getElementById("authOverlay").style.display = "none"; }
+function setAuthMode(mode){
+  const box = document.getElementById("authBox");
+  box.dataset.mode = mode;
+  document.getElementById("authNameField").style.display = mode === "signup" ? "" : "none";
+  document.getElementById("authSubmit").textContent = mode === "signup" ? "Créer mon compte" : "Se connecter";
+  document.getElementById("authSwitch").textContent = mode === "signup" ? "J'ai déjà un compte" : "Créer un compte";
+  document.getElementById("authTitle").textContent = mode === "signup" ? "Créer un compte" : "Connexion";
+  authMsg("", "");
+}
+function authMsg(text, kind){
+  const m = document.getElementById("authMsg");
+  m.textContent = text;
+  m.className = text ? "msg show " + kind : "msg";
+}
+function appUrl(){ return location.origin + location.pathname; }
+
+async function submitAuth(){
+  const mode = document.getElementById("authBox").dataset.mode;
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const name = document.getElementById("authName").value.trim();
+  if(!email || !password){ authMsg("Saisissez votre e-mail et votre mot de passe.", "err"); return; }
+  if(mode === "signup"){
+    if(name.length < 3){ authMsg("Saisissez votre nom complet (ex. MINYURANO Aloys).", "err"); return; }
+    if(password.length < 8){ authMsg("Mot de passe : 8 caractères minimum.", "err"); return; }
+    const { data, error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { display_name: name }, emailRedirectTo: appUrl() }
+    });
+    if(error){ authMsg(traduireErreur(error.message), "err"); return; }
+    if(!data.session){
+      authMsg("Compte créé. Ouvrez l'e-mail de confirmation que vous venez de recevoir, puis connectez-vous.", "ok");
+      setTimeout(() => setAuthMode("login"), 6000);
+    }
+  }else{
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){ authMsg(traduireErreur(error.message), "err"); return; }
+  }
+}
+async function forgotPassword(){
+  const email = document.getElementById("authEmail").value.trim();
+  if(!email){ authMsg("Saisissez d'abord votre e-mail, puis cliquez sur « Mot de passe oublié ».", "err"); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
+  authMsg(error ? traduireErreur(error.message) : "Un lien de réinitialisation vient d'être envoyé à " + email + ".", error ? "err" : "ok");
+}
+function traduireErreur(m){
+  if(/Invalid login credentials/i.test(m)) return "E-mail ou mot de passe incorrect.";
+  if(/Email not confirmed/i.test(m)) return "Confirmez d'abord votre e-mail (lien reçu par e-mail).";
+  if(/already registered/i.test(m)) return "Un compte existe déjà avec cet e-mail : connectez-vous.";
+  if(/rate limit/i.test(m)) return "Trop de tentatives : réessayez dans quelques minutes.";
+  if(/Password should/i.test(m)) return "Mot de passe trop faible (8 caractères minimum).";
+  return m;
+}
+
+/* ---------- après connexion ---------- */
+async function onSignedIn(user){
+  try{
+    await fetchAll();
+    OFFLINE_MODE = false; setOfflineBanner(false);
+  }catch(e){
+    loadCache();
+  }
+  CURRENT = PROFILES.find(p => p.id === user.id) || null;
+  if(!CURRENT){
+    const { data } = await sb.from("profiles").select("id,email,display_name,role").eq("id", user.id).maybeSingle();
+    CURRENT = data;
+  }
+  if(!CURRENT || CURRENT.role === "attente"){
+    document.getElementById("authOverlay").style.display = "flex";
+    document.getElementById("authBox").style.display = "none";
+    document.getElementById("pendingBox").style.display = "";
+    document.getElementById("pendingName").textContent = CURRENT ? CURRENT.display_name : user.email;
+    return;
+  }
+  hideLogin();
+  ADMIN_UNLOCKED = isAdmin();
+  populateMembers();
+  renderUserBadge();
+  refreshChrome();
+  subscribeRealtime();
+  offerLocalImport();
+}
+function renderUserBadge(){
+  const el = document.getElementById("userBadge");
+  el.innerHTML = `${avatarHTML(CURRENT.display_name, "sm")} <b>${CURRENT.display_name}</b> · ${ROLE_LABELS[CURRENT.role] || CURRENT.role}`;
+  document.getElementById("headerMembers").textContent = MEMBERS.join(", ");
+}
+function populateMembers(){
+  const sel = document.getElementById("activeMember");
+  const current = isAdmin() ? (sel.value || (CURRENT && CURRENT.display_name)) : (CURRENT && CURRENT.display_name);
+  sel.innerHTML = MEMBERS.map(m => `<option>${m}</option>`).join("");
+  if(current && MEMBERS.includes(current)) sel.value = current;
+  sel.disabled = !isAdmin();
+  sel.title = isAdmin() ? "L'administrateur peut saisir au nom d'un membre" : "Vous saisissez en votre nom";
+  const hm = document.getElementById("headerMembers");
+  if(hm) hm.textContent = MEMBERS.join(", ");
+}
+function subscribeRealtime(){
+  if(realtimeChannel) return;
+  realtimeChannel = sb.channel("registre")
+    .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "factures" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, scheduleReload)
+    .subscribe();
+}
+async function signOut(){
+  if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+  await sb.auth.signOut();
+  CURRENT = null; DATA = { transactions: [], factures: [], target: null }; markSynced();
+  ADMIN_UNLOCKED = false;
+  panelHost.innerHTML = "";
+  refreshChrome();
+  showLogin();
+}
+
+/* Import des données enregistrées sur cet appareil avec l'ancienne version */
+function offerLocalImport(){
+  const banner = document.getElementById("importBanner");
+  banner.style.display = "none";
+  if(!isAdmin()) return;
+  let old = null;
+  try{ old = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); }catch(e){}
+  if(!old || !Array.isArray(old.transactions) || !old.transactions.length) return;
+  const known = new Set(DATA.transactions.map(t => String(t.id)));
+  const fresh = old.transactions.filter(t => !known.has(String(t.id)));
+  if(!fresh.length) return;
+  banner.style.display = "flex";
+  banner.querySelector("span").textContent =
+    `${fresh.length} transaction(s) de l'ancienne version sont enregistrées sur cet appareil.`;
+  banner.querySelector("button").onclick = async () => {
+    const knownF = new Set(DATA.factures.map(f => String(f.id)));
+    DATA.transactions = DATA.transactions.concat(fresh);
+    DATA.factures = DATA.factures.concat((old.factures || []).filter(f => !knownF.has(String(f.id))));
+    if(DATA.target === null && old.target) DATA.target = old.target;
+    await saveData();
+    localStorage.setItem(STORE_KEY + "_importe", localStorage.getItem(STORE_KEY));
+    localStorage.removeItem(STORE_KEY);
+    banner.style.display = "none";
+    refreshChrome();
+    showToast("Données de cet appareil importées dans le registre en ligne.");
+  };
+}
+
+/* ---------- panneaux administrateur ---------- */
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
+
+function panelMembers(root){
+  if(!isAdmin()){ root.innerHTML = `<h2>👥 Membres</h2><p class="role">Réservé à l'administrateur.</p>`; return; }
+  const rows = PROFILES.map(p => `
+    <tr data-id="${p.id}">
+      <td>${avatarHTML(p.display_name, "sm")}</td>
+      <td><input class="m-name" value="${esc(p.display_name)}" ${p.id === CURRENT.id ? "" : ""}></td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;">${esc(p.email)}</td>
+      <td>
+        <select class="m-role" ${p.id === CURRENT.id ? "disabled title=\"Vous ne pouvez pas retirer votre propre rôle d'administrateur\"" : ""}>
+          ${["attente", "membre", "lecture", "admin"].map(r => `<option value="${r}" ${p.role === r ? "selected" : ""}>${ROLE_LABELS[r]}</option>`).join("")}
+        </select>
+      </td>
+      <td><button class="btn m-save" style="padding:5px 12px;font-size:12px;">Enregistrer</button></td>
+    </tr>`).join("");
+  const pending = PROFILES.filter(p => p.role === "attente").length;
+  root.innerHTML = `
+    <h2>👥 Membres et rôles</h2>
+    <p class="role">Chaque personne crée son compte depuis l'écran de connexion. Elle apparaît ici <b>en attente</b> : choisissez son rôle pour lui donner accès.
+    ${pending ? `<br><b style="color:var(--gold-light)">${pending} compte(s) en attente de validation.</b>` : ""}</p>
+    <div class="tablewrap"><table class="dbtable">
+      <thead><tr><th></th><th>Nom affiché</th><th>E-mail</th><th>Rôle</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <div class="explain" style="margin-top:12px;">
+      <b>Administrateur</b> : tout faire · <b>Membre</b> : saisir en son nom, tout consulter ·
+      <b>Lecture seule</b> : consulter · <b>En attente</b> : aucun accès.
+    </div>
+    <div class="msg" id="membersMsg"></div>`;
+  root.querySelectorAll(".m-save").forEach(btn => {
+    btn.onclick = async () => {
+      const tr = btn.closest("tr");
+      const id = tr.dataset.id;
+      const display_name = tr.querySelector(".m-name").value.trim();
+      const roleSel = tr.querySelector(".m-role");
+      const update = { display_name };
+      if(!roleSel.disabled) update.role = roleSel.value;
+      const msg = root.querySelector("#membersMsg");
+      if(display_name.length < 3){ msg.className = "msg err show"; msg.textContent = "Nom trop court."; return; }
+      const { data, error } = await sb.from("profiles").update(update).eq("id", id).select("id");
+      if(error || !data || !data.length){
+        msg.className = "msg err show"; msg.textContent = "Modification refusée : " + (error ? error.message : "droits insuffisants");
+        return;
+      }
+      msg.className = "msg ok show"; msg.textContent = "Membre mis à jour.";
+      await reloadFromServer();
+      if(CURRENT) renderUserBadge();
+    };
+  });
+}
+
+async function panelAudit(root){
+  if(!isAdmin()){ root.innerHTML = `<h2>📜 Journal d'audit</h2><p class="role">Réservé à l'administrateur.</p>`; return; }
+  root.innerHTML = `<h2>📜 Journal d'audit</h2><p class="role">Toutes les opérations enregistrées par le serveur : qui, quoi, quand. Ce journal ne peut pas être modifié.</p><div id="auditBody">Chargement…</div>`;
+  const { data, error } = await sb.from("audit_log").select("*").order("id", { ascending: false }).limit(300);
+  const body = root.querySelector("#auditBody");
+  if(!body) return;
+  if(error){ body.innerHTML = `<div class="msg err show">${esc(error.message)}</div>`; return; }
+  if(!data.length){ body.innerHTML = `<div class="explain">Aucune opération enregistrée pour le moment.</div>`; return; }
+  const ACT = { INSERT: "Ajout", DELETE: "Suppression", UPDATE: "Modification" };
+  const TBL = { transactions: "Transaction", factures: "Facture", settings: "Objectif", profiles: "Membre" };
+  const detail = r => {
+    const d = r.details || {};
+    const x = d.apres || d;
+    if(r.table_name === "transactions") return `${x.type === "deposit" ? "Dépôt" : "Dépense"} · ${esc(x.person)} · ${fmt(Number(x.amount))} MAD`;
+    if(r.table_name === "factures") return `${esc(x.nom)} · ${fmt(Number(x.montant))} MAD`;
+    if(r.table_name === "settings") return x.value && x.value.amount ? `Objectif : ${fmt(Number(x.value.amount))} MAD` : "Objectif supprimé";
+    if(r.table_name === "profiles") return `${esc(x.display_name)} → ${ROLE_LABELS[x.role] || esc(x.role)}`;
+    return "";
+  };
+  body.innerHTML = `<div class="tablewrap"><table class="dbtable">
+    <thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Élément</th><th>Détail</th></tr></thead>
+    <tbody>${data.map(r => `<tr>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;">${new Date(r.at).toLocaleString("fr-FR")}</td>
+      <td>${esc(r.user_name || "—")}</td>
+      <td>${ACT[r.action] || r.action}</td>
+      <td>${TBL[r.table_name] || r.table_name}</td>
+      <td>${detail(r)}</td></tr>`).join("")}</tbody></table></div>`;
+}
+
+/* ---------- démarrage ---------- */
+async function bootCloud(){
+  document.getElementById("authSubmit").onclick = submitAuth;
+  document.getElementById("authPassword").addEventListener("keydown", e => { if(e.key === "Enter") submitAuth(); });
+  document.getElementById("authSwitch").onclick = () => setAuthMode(document.getElementById("authBox").dataset.mode === "signup" ? "login" : "signup");
+  document.getElementById("authForgot").onclick = forgotPassword;
+  document.getElementById("logoutBtn").onclick = signOut;
+  document.getElementById("pendingLogout").onclick = signOut;
+  window.addEventListener("online", () => { if(CURRENT) scheduleReload(); });
+  window.addEventListener("offline", () => { OFFLINE_MODE = true; setOfflineBanner(true); });
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if(event === "PASSWORD_RECOVERY"){
+      setTimeout(async () => {
+        const pw = prompt("Choisissez votre nouveau mot de passe (8 caractères minimum) :");
+        if(pw && pw.length >= 8){
+          const { error } = await sb.auth.updateUser({ password: pw });
+          showToast(error ? traduireErreur(error.message) : "Mot de passe modifié.", error ? "err" : "ok");
+        }
+      }, 0);
+    }
+    if(event === "SIGNED_IN" && session && (!CURRENT || CURRENT.id !== session.user.id)){
+      setTimeout(() => onSignedIn(session.user), 0);
+    }
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if(session) await onSignedIn(session.user);
+  else showLogin();
+}
+
+if("serviceWorker" in navigator && location.protocol === "https:"){
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+}
+
+bootCloud();
 </script>
 </body>
 </html>
