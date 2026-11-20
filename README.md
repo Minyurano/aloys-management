@@ -12,7 +12,28 @@ Plusieurs **foyers** indépendants peuvent utiliser la même application, chacun
 
 **Application :** https://minyurano.github.io/aloys-management/ (installable sur téléphone)
 
+<p align="center"><img src="docs/screenshots/analyse.jpg" alt="Tableau de bord Analyse et modèles : camemberts par membre et par catégorie, histogramme, nuage de points" width="860"></p>
+
 ---
+
+## Aperçu
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/prevision.jpg" alt="Prévision du solde avec intervalle à 95 %"><br><sub><b>Prévision du solde</b> : cinq modèles comparés, le meilleur est retenu automatiquement</sub></td>
+    <td width="50%"><img src="docs/screenshots/equilibre.jpg" alt="Qui doit combien à qui"><br><sub><b>Qui doit combien ?</b> : règlement en un minimum de virements</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/assistant.jpg" alt="Assistant en langage naturel"><br><sub><b>Assistant</b> : questions en français, réponses calculées localement</sub></td>
+    <td><img src="docs/screenshots/budgets.jpg" alt="Budgets et alertes"><br><sub><b>Budgets et alertes</b> : projection de fin de mois par catégorie</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/facture.jpg" alt="Facture avec catégorie suggérée par IA"><br><sub><b>Facture</b> : catégorie suggérée par un classifieur bayésien naïf, photo du reçu</sub></td>
+    <td><img src="docs/screenshots/rapport.jpg" alt="Rapport mensuel PDF"><br><sub><b>Rapport mensuel PDF</b> prêt à partager</sub></td>
+  </tr>
+</table>
+
+<sub>Captures réalisées avec des données de démonstration (noms et montants fictifs).</sub>
 
 ## Fonctionnalités
 
@@ -59,7 +80,8 @@ Les résultats statistiques sont **vérifiés contre SciPy** dans les tests (Kru
 
 ```
  Navigateur / téléphone (PWA)
-   index.html ..... interface, synchronisation, comptes
+   index.html, styles.css, app.js ... interface
+   cloud.js ....... synchronisation Supabase, comptes, foyers, reçus
    analytics.js ... tableau de bord, statistiques, modèles de prévision
    categories.js .. catégories, classifieur bayésien naïf
    features.js .... équilibre, budgets, assistant, rapport PDF, notifications
@@ -97,7 +119,10 @@ GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) exécute à chaque modific
 
 ```
 .
-├── index.html               # Interface, synchronisation Supabase, comptes et foyers
+├── index.html               # Structure de la page
+├── styles.css               # Styles
+├── app.js                   # Interface : panneaux, saisie, statistiques de base
+├── cloud.js                 # Synchronisation Supabase, comptes, foyers, reçus, temps réel
 ├── analytics.js             # Tableau de bord analytique, statistiques, modèles de prévision
 ├── categories.js            # Catégories de dépenses, classifieur bayésien naïf
 ├── features.js              # Équilibre, budgets, assistant, rapport PDF, notifications
@@ -105,6 +130,7 @@ GitHub Actions ([`ci.yml`](.github/workflows/ci.yml)) exécute à chaque modific
 ├── sw.js, manifest.json     # Application installable (PWA)
 ├── icons/
 ├── tests/                   # Tests unitaires (node:test) et tests SQL de sécurité
+├── docs/screenshots/        # Captures d'écran (données fictives)
 ├── .github/workflows/ci.yml # Intégration continue
 ├── package.json
 ├── LICENSE
